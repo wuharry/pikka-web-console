@@ -1,0 +1,39 @@
+  <div
+      class="font-sans leading-6 font-normal text-white/87 bg-gray-800 dark:text-white/87 dark:bg-gray-800 light:text-gray-800 light:bg-white min-h-screen flex justify-center m-0 w-full">
+      <div class="w-full">
+        <!-- TODO:hover bg樣式調整 -->
+          <ul
+            id="tab-links"
+            role="tablist"
+              class="flex flex-wrap text-sm font-medium text-center text-gray-500 border-b border-gray-200 dark:border-gray-700 dark:text-gray-400">
+              <li class="me-2" >
+                 <button role="tab" aria-current="page"
+                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">Log</button>
+              </li>
+              <li class="me-2" >
+                 <button role="tab" 
+                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">Error</button>
+              </li>
+              <li class="me-2" >
+                 <button role="tab" 
+                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">Warn</button>
+              </li>
+              <li class="me-2" >
+                 <button role="tab" 
+                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">Info</button>
+              </li>
+              <li>
+                 <button role="tab" 
+                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">All</button>
+              </li>
+          </ul>
+      </div>
+      <div class="" id="tab-content">
+        <div class="console-history">
+            <div class="" id="console-input-log"></div>
+            <div class="" id="console-output-log"></div>
+        </div>
+        <input class="" id="console-input" type="text" autofocus spellcheck="false">
+      </div>
+  </div>
+

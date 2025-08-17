@@ -4,7 +4,21 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [tailwindcss()],
+  server: {
+    port: 7770, // 前端開發伺服器的端口
+    strictPort: true, // 如果端口被佔用，則不啟動伺服器
+    proxy: {
+      // 代理配置
+      "/api": {
+        target: "http://localhost:8174", // 後端伺服器地址
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+    },
+  },
   build: {
+    outDir: "dist",
+
     lib: {
       entry: "src/main.ts", // 你的入口
       name: "PikkaWebConsole",

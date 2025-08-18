@@ -1,187 +1,131 @@
-export function setupTabs() {
-  const tabList = document.querySelector<HTMLUListElement>("#tab-links")!;
-  const tabs =
-    tabList.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
+export function consoleMonitor() {
+  const errorSet = new Set<string>();
+  const infoList: string[] = [];
+  const warnList: string[] = [];
+  const logList: string[] = [];
+  const { log, error, warn, info } = console;
 
-  const TAB_COLOR_MAP = {
-    Log: "bg-blue-300",
-    Error: "bg-red-300",
-    Warn: "bg-yellow-300",
-    Info: "bg-green-300",
-    All: "bg-gray-300",
+  const safeStringify = (arg: unknown) => {
+    try {
+      return typeof arg === "string" ? arg : JSON.stringify(arg);
+    } catch {
+      return "[Unserializable]";
+    }
   };
-  const ALL_BG_COLORS = Object.values(TAB_COLOR_MAP);
-
-  tabs.forEach((button) => {
-    button.addEventListener("click", (e) => {
-      const target = e.target as HTMLButtonElement;
-      // 移除所有 active 狀態
-      tabs.forEach((tab) =>
-        tab.classList.remove("active", "text-gray-50", ...ALL_BG_COLORS)
-      );
-
-      // 添加 active 狀態到當前 tab
-      target.classList.add(
-        "active",
-        "text-gray-50",
-        TAB_COLOR_MAP[target.innerText as keyof typeof TAB_COLOR_MAP]
-      );
-
-      switchContent(target.innerText.toLowerCase());
-    });
-  });
-}
-
-function switchContent(tabType: string) {
-  const content = document.querySelector("#tab-content");
-  if (content) {
-    content.innerHTML = getTabContent(tabType);
-  }
-}
-
-function getTabContent(tabType: string): string {
-  switch (tabType) {
-    case "log":
-      return "<div>呈現Log 內容</div>";
-    case "error":
-      return "<div>呈現Error 內容</div>";
-    case "warn":
-      return "<div>呈現Warn 內容</div>";
-    case "info":
-      return "<div>呈現Info 內容</div>";
-    case "all":
-      return "<div>呈現All 內容</div>";
-    default:
-      return "<div>預設內容</div>";
-  }
-}
-
-// output型別很多,如果真的不行的話就把它設定成any,這個是獲取到api輸出
-function addResult(input: string, output: unknown): string {
-  const outType = typeof output;
-  let outputAsString: string;
-  let isCodeBlock = false;
-  let typeColorClass = "";
-  const outputElement = document.createElement("div");
-  const inputElement = document.createElement("div");
-
-  const typeColors = {
-    string: "text-green-600",
-    number: "text-red-600",
-    boolean: "text-purple-600",
-    null: "text-gray-500",
-    undefined: "text-gray-500",
-    function: "text-blue-600",
-    object: "text-indigo-600",
-    array: "text-orange-600",
-    symbol: "text-pink-600",
-    bigint: "text-yellow-600",
+  // HACK:取代原本的console.log
+  console.log = (...args: unknown[]) => {
+    logList.push(args.map(safeStringify).join(" "));
+    // HACK:呼叫原本的console.log-->不影響到原本的方法
+    log.apply(console, args);
   };
 
-  switch (outType) {
-    case "number":
-      outputAsString = String(output);
-      typeColorClass = typeColors.number;
-      break;
-    case "boolean":
-      outputAsString = String(output);
-      typeColorClass = typeColors.boolean;
-      break;
-    case "string":
-      outputAsString = `"${output}"`;
-      typeColorClass = typeColors.string;
-      break;
-    case "object":
-      if (output === null) {
-        outputAsString = "null";
-        typeColorClass = typeColors.null;
-      } else if (Array.isArray(output)) {
-        if (output.length <= 5) {
-          outputAsString = `[${output
-            .map((item) =>
-              typeof item === "string" ? `"${item}"` : String(item)
-            )
-            .join(", ")}]`;
-        } else {
-          outputAsString = JSON.stringify(output, null, 2);
-          isCodeBlock = true;
-        }
-        typeColorClass = typeColors.array;
-      } else {
-        try {
-          outputAsString = JSON.stringify(output, null, 2);
-          isCodeBlock = true;
-        } catch (error) {
-          outputAsString = "[Circular Reference or Non-serializable Object]";
-        }
-        typeColorClass = typeColors.object;
-      }
-      break;
-    case "function":
-      outputAsString = (output as Function).toString();
-      isCodeBlock = true;
-      typeColorClass = typeColors.function;
-      break;
-    case "symbol":
-      outputAsString = String(output);
-      typeColorClass = typeColors.symbol;
-      break;
-    case "undefined":
-      outputAsString = "undefined";
-      typeColorClass = typeColors.undefined;
-      break;
-    case "bigint":
-      outputAsString = String(output) + "n";
-      typeColorClass = typeColors.bigint;
-      break;
-    default:
-      outputAsString = String(output);
-      typeColorClass = "text-gray-700";
-      break;
-  }
+  // HACK:這邊我特別去處理
+  console.error = (...args: unknown[]) => {
+    const message = args
+      .map((arg) =>
+        typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+      )
+      .join(" ");
+    errorSet.add(message);
 
-  inputElement.classList.add(
-    "font-mono",
-    "text-blue-700",
-    "text-sm",
-    "my-1",
-    "px-2",
-    "py-1"
-  );
-  inputElement.textContent = `> ${input}`;
+    error.apply(console, args);
+  };
+  console.warn = (...args: unknown[]) => {
+    warnList.push(args.map(safeStringify).join(" "));
+    // HACK:呼叫原本的console.warn-->不影響到原本的方法
+    warn.apply(console, args);
+  };
+  console.info = (...args: unknown[]) => {
+    infoList.push(args.map(safeStringify).join(" "));
+    info.apply(console, args);
+  };
+  //   // 捕捉資源錯誤的
+  //   window.onerror = (message, source, lineno, colno, error) => {
+  //     const errorData: JSRuntimeError = {
+  //       type: "js-runtime",
+  //       message,
+  //       source,
+  //       line: lineno,
+  //       column: colno,
+  //     };
+  //     const errorString = normalizeError(errorData);
+  //     errorSet.add(errorString);
+  //     // console.error(errorString);
+  //   };
+  //   window.addEventListener("error", (e: ErrorEvent) => {
+  //     let normalized: string;
+  //     let errorData: ResourceError | JSRuntimeError;
 
-  outputElement.classList.add(
-    "font-mono",
-    "text-sm",
-    "my-1",
-    "ml-4",
-    "px-2",
-    "py-1",
-    typeColorClass
-  );
+  //     // HACK:當e.target !== window → 資源載入錯誤,e.target 是載入失敗的 DOM 元素（如 <img>, <script>, <link>）
+  //     // EX:圖片 404、腳本載入失敗、CSS 檔案不存在
+  //     if (e.target && e.target !== window) {
+  //       errorData = {
+  //         type: "resource",
+  //         target: e.target,
+  //       } as const;
+  //     }
+  //     //HACK:e.target === window → JavaScript 運行時錯誤,所以e.target 是 window 物件
+  //     // EX:undefined.property、語法錯誤、型別錯誤
+  //     else if (e.target && e.target === window) {
+  //       errorData = {
+  //         type: "js-runtime",
+  //         message: e.message,
+  //         source: e.filename,
+  //         line: e.lineno,
+  //         column: e.colno,
+  //       } as const;
+  //     } else {
+  //       // HACK:第三種情況,我可能沒有考慮到的那種lol
+  //       return;
+  //     }
+  //     normalized = normalizeError(errorData);
+  //     errorSet.add(normalized);
+  //   });
+  //   window.addEventListener("unhandledrejection", (ev) => {
+  //     errorSet.add(`Promise UnhandledRejection: ${safeStringify(ev.reason)}`);
+  //   });
 
-  if (isCodeBlock) {
-    const codeElement = document.createElement("pre");
-    const code = document.createElement("code");
-    code.textContent = outputAsString;
-    code.classList.add("language-javascript");
-    codeElement.appendChild(code);
-    codeElement.classList.add("console-code-block");
-    outputElement.appendChild(codeElement);
-  } else {
-    outputElement.textContent = outputAsString;
-  }
-
-  return outputAsString;
+  return { errorSet, infoList, warnList, logList };
 }
 
-function ErrorMonitor() {
-  const errorSet = new Set();
-  const infoSet = new Set();
-  const warnSet = new Set();
-  const logSet = new Set();
-  // 捕捉資源錯誤的
-  window.onerror = (message, source, lineno, colno, error) => {
-    errorSet.add({ message, source, lineno, colno, error });
-  };
+type JSRuntimeError = {
+  type: "js-runtime";
+  message: string | Event;
+  source?: string;
+  line?: number;
+  column?: number;
+};
+
+type ResourceError = {
+  type: "resource";
+  target: HTMLElement | EventTarget;
+};
+
+type UnknownError = {
+  type: "unknown";
+  data: any;
+};
+
+type ErrorData = JSRuntimeError | ResourceError | UnknownError;
+
+function normalizeError(data: ErrorData): string {
+  if (data.type === "js-runtime") {
+    return `JS: ${data.message} at ${data.source}:${data.line}`;
+  } else if (data.type === "resource") {
+    // HACK:資源載入有多種情況,可能是以下DOM引起<img>、<script>、<link>
+    // 所以需要額外判斷
+    if (data.target instanceof HTMLImageElement) {
+      return `Resource Error: Image failed to load ${data.target.src}`;
+    }
+    if (data.target instanceof HTMLScriptElement) {
+      return `Resource Error: Script failed to load ${data.target.src}`;
+    }
+    if (data.target instanceof HTMLLinkElement) {
+      return `Resource Error: Link failed to load ${data.target.href}`;
+    }
+
+    return `Resource Error: Unknown target ${data.target}`;
+    // return `Resource: ${data.target.src || data.target.href} failed to load`;
+  }
+  return `Unknown: ${JSON.stringify(data)}`;
 }

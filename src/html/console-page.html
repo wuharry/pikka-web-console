@@ -1,39 +1,106 @@
-  <div
-      class="font-sans leading-6 font-normal text-white/87 bg-gray-800 dark:text-white/87 dark:bg-gray-800 light:text-gray-800 light:bg-white min-h-screen flex justify-center m-0 w-full">
-      <div class="w-full">
-        <!-- TODO:hover bg樣式調整 -->
-          <ul
-            id="tab-links"
-            role="tablist"
-              class="flex flex-wrap text-sm font-medium text-center text-gray-500 border-b border-gray-200 dark:border-gray-700 dark:text-gray-400">
-              <li class="me-2" >
-                 <button role="tab" aria-current="page"
-                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">Log</button>
-              </li>
-              <li class="me-2" >
-                 <button role="tab" 
-                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">Error</button>
-              </li>
-              <li class="me-2" >
-                 <button role="tab" 
-                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">Warn</button>
-              </li>
-              <li class="me-2" >
-                 <button role="tab" 
-                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">Info</button>
-              </li>
-              <li>
-                 <button role="tab" 
-                      class="inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:text-gray-300">All</button>
-              </li>
-          </ul>
-      </div>
-      <div class="" id="tab-content">
-        <div class="console-history">
-            <div class="" id="console-input-log"></div>
-            <div class="" id="console-output-log"></div>
+  <div class="font-sans leading-6 font-normal text-white/87 bg-gray-800 
+                dark:text-white/87 dark:bg-gray-800 
+                light:text-gray-800 light:bg-white 
+                min-h-screen flex flex-col m-0 w-full">
+        
+        <!-- Header Container -->
+        <div class="w-full">
+            <!-- Tab Navigation -->
+            <ul id="tab-links" 
+                role="tablist"
+                class="flex flex-wrap text-sm font-medium text-center 
+                       text-gray-500 border-b border-gray-200 
+                       dark:border-gray-700 dark:text-gray-400">
+                
+                <!-- Log Tab -->
+                <li class="me-2">
+                    <button role="tab" 
+                            aria-current="page"
+                            class="inline-block p-4 rounded-t-lg 
+                                   hover:text-gray-600 hover:bg-gray-50 
+                                   dark:hover:bg-gray-800 dark:hover:text-gray-300">
+                        Log
+                    </button>
+                </li>
+                
+                <!-- Error Tab -->
+                <li class="me-2">
+                    <button role="tab"
+                            class="inline-block p-4 rounded-t-lg 
+                                   hover:text-gray-600 hover:bg-gray-50 
+                                   dark:hover:bg-gray-800 dark:hover:text-gray-300">
+                        Error
+                    </button>
+                </li>
+                
+                <!-- Warn Tab -->
+                <li class="me-2">
+                    <button role="tab"
+                            class="inline-block p-4 rounded-t-lg 
+                                   hover:text-gray-600 hover:bg-gray-50 
+                                   dark:hover:bg-gray-800 dark:hover:text-gray-300">
+                        Warn
+                    </button>
+                </li>
+                
+                <!-- Info Tab -->
+                <li class="me-2">
+                    <button role="tab"
+                            class="inline-block p-4 rounded-t-lg 
+                                   hover:text-gray-600 hover:bg-gray-50 
+                                   dark:hover:bg-gray-800 dark:hover:text-gray-300">
+                        Info
+                    </button>
+                </li>
+                
+                <!-- All Tab -->
+                <li>
+                    <button role="tab"
+                            class="inline-block p-4 rounded-t-lg 
+                                   hover:text-gray-600 hover:bg-gray-50 
+                                   dark:hover:bg-gray-800 dark:hover:text-gray-300">
+                        All
+                    </button>
+                </li>
+            </ul>
         </div>
-        <input class="" id="console-input" type="text" autofocus spellcheck="false">
-      </div>
-  </div>
-
+        
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col">
+            <!-- Tab Content Display -->
+            <div id="tab-content" 
+                 class="flex-1 bg-gray-900 overflow-hidden">
+                
+                <!-- Console History Display -->
+                <div class="console-history h-full flex flex-col">
+                    <!-- Input Log Display -->
+                    <div id="console-input-log" 
+                         class="flex-1 overflow-y-auto p-4 space-y-2">
+                        <!-- 這裡會顯示 console 輸入的內容 -->
+                    </div>
+                    
+                    <!-- Output Log Display -->
+                    <div id="console-output-log" 
+                         class="flex-1 overflow-y-auto p-4 space-y-2 border-t border-gray-700">
+                        <!-- 這裡會顯示 console 輸出的內容 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Console Input Area -->
+            <div class="border-t border-gray-700 p-4 bg-gray-800">
+                <div class="flex items-center space-x-2">
+                    <span class="text-green-400 font-mono">></span>
+                    <input id="console-input" 
+                           type="text" 
+                           autofocus 
+                           spellcheck="false"
+                           placeholder="輸入 JavaScript 指令..."
+                           class="flex-1 bg-transparent text-white 
+                                  border border-gray-600 rounded px-3 py-2
+                                  focus:border-blue-500 focus:outline-none
+                                  font-mono text-sm">
+                </div>
+            </div>
+        </div>
+    </div>

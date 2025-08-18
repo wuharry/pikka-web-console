@@ -26,7 +26,12 @@ export default defineConfig({
       formats: ["es", "umd", "iife"],
     },
     rollupOptions: {
+      external: ["@hono/node-server", "hono"], // 外部依賴
       output: {
+        globals: {
+          hono: "Hono",
+          "@hono/node-server": "HonoNodeServer",
+        },
         // ✅ 確保 CSS 被正確處理,添加輸出的css檔案
         assetFileNames: (assetInfo) => {
           const names = (assetInfo as any).names as string[] | undefined; // rollup v4

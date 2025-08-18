@@ -1,3 +1,203 @@
 /* src/style.css */
 
 @import "tailwindcss";
+
+/* 自定義 CSS 變數 */
+:root {
+    --gray-950: #0a0a0a;
+    --gray-925: #111111;
+    --gray-900: #1a1a1a;
+    --gray-850: #262626;
+    --gray-750: #333333;
+}
+
+/* 自定義顏色類別 */
+.bg-gray-950 {
+    background-color: var(--gray-950);
+}
+
+.bg-gray-925 {
+    background-color: var(--gray-925);
+}
+
+.bg-gray-900 {
+    background-color: var(--gray-900);
+}
+
+.bg-gray-850 {
+    background-color: var(--gray-850);
+}
+
+.bg-gray-750 {
+    background-color: var(--gray-750);
+}
+
+.text-gray-950 {
+    color: var(--gray-950);
+}
+
+.text-gray-925 {
+    color: var(--gray-925);
+}
+
+.text-gray-900 {
+    color: var(--gray-900);
+}
+
+.text-gray-850 {
+    color: var(--gray-850);
+}
+
+.text-gray-750 {
+    color: var(--gray-750);
+}
+
+.border-gray-950 {
+    border-color: var(--gray-950);
+}
+
+.border-gray-925 {
+    border-color: var(--gray-925);
+}
+
+.border-gray-900 {
+    border-color: var(--gray-900);
+}
+
+.border-gray-850 {
+    border-color: var(--gray-850);
+}
+
+.border-gray-750 {
+    border-color: var(--gray-750);
+}
+
+/* 自定義動畫 */
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulseGlow {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-pulse-glow {
+    animation: pulseGlow 2s infinite;
+}
+
+/* 自定義陰影效果 */
+.shadow-glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.shadow-glow-red {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.shadow-glow-yellow {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+.shadow-glow-green {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.shadow-glow-purple {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+/* 自定義漸層背景 */
+.bg-gradient-gray {
+    background: linear-gradient(145deg, var(--gray-925), var(--gray-950));
+}
+
+.bg-gradient-console {
+    background: linear-gradient(145deg, var(--gray-900), var(--gray-925));
+}
+
+/* 自定義滾動條 (如果需要) */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: var(--gray-950);
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--gray-750);
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-850);
+}
+
+/* Tab 按鈕進階樣式 */
+.tab-btn {
+    position: relative;
+    backdrop-filter: blur(8px);
+}
+
+.tab-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 8px 8px 0 0;
+    background: transparent;
+    transition: all 0.3s ease;
+    z-index: -1;
+}
+
+.tab-btn.active::before {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+}
+
+/* 控制台輸入框進階樣式 */
+.console-input-enhanced {
+    background: linear-gradient(145deg, var(--gray-850), var(--gray-900));
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.console-input-enhanced:focus {
+    background: var(--gray-850);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* 響應式字體大小 */
+@media (max-width: 640px) {
+    .tab-btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .console-input-enhanced {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+}

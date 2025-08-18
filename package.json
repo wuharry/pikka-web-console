@@ -2,15 +2,48 @@
   "name": "pikka-web-console",
   "private": false,
   "version": "0.0.0",
+  "description": "檢視console by web 的套件(尚未完成)",
   "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/inpage-console.es.js",
+      "require": "./dist/inpage-console.umd.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "console",
+    "debug",
+    "web",
+    "development",
+    "logging"
+  ],
+  "author": "吳浩維 wu harry<whw880218we@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wuharry/pikka-web-console.git"
+  },
+  "homepage": "https://github.com/wuharry/pikka-web-console",
   "scripts": {
     "dev": "concurrently \"pnpm dev:frontend\" \"pnpm dev:backend\"",
     "dev:frontend": "vite",
     "dev:backend": "nodemon --exec tsx src/backend/main.ts",
-    "dev:backend-watch": "tsx watch src/backend/main.ts",
     "build": "tsc && vite build",
-    "build:frontend": "vite build",
-    "build:backend": "tsc",
+    "build:lib": "vite build --mode lib",
+    "build:server": "tsc --project tsconfig.server.json",
+    "prepare": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "preview": "vite preview",
     "start:backend": "tsx src/backend/main.ts"
   },

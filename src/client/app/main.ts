@@ -1,41 +1,39 @@
-// src/main.ts
-import "../../assets/styles";
+// src / client / app / main.ts;
 
-import logPage from "./html/console-page.html?raw";
-// import { testConsoleMonitor } from "./console.ts";
+import { appController } from "./app-controller";
 
-const initializeDOM = (): void => {
-  const app = document.querySelector<HTMLElement>("#pikka-console-web");
-  if (!app) {
-    console.error("找不到 #app 元素");
-    return;
-  }
-  app.innerHTML = logPage;
-};
-window.addEventListener("DOMContentLoaded", () => {
-  setupTabs();
-});
+const app = appController();
 
 function bootsStartUp(): void {
-  initializeDOM();
-  if (import.meta.env.DEV) {
-    console.log("應用已啟動 - 開發模式");
-    // 取消註釋以啟用測試
-    // testConsoleMonitor();
+  const success = app.bootUp();
+
+  if (!success) {
+    console.error("應用啟動失敗");
+    return;
+  }
+
+  // 檢測執行這段code的環境是不是在瀏覽器環境中執行
+  // false → window 存在 --> 代表 現在是在瀏覽器中執行，因為瀏覽器才有 window 這個全域物件。
+  if (typeof window !== "undefined") {
+    // windows.(自定義要掛載的方法)=函式(自訂)
+    (window as any).consoleApp = app;
   }
 }
 
-// 檢測執行這段code的環境是不是在瀏覽器環境中執行
-//SSR,Node環境有自己的終端
-if (typeof window !== "undefined") {
-  // windows.(自定義要掛載的方法)=函式(自訂)
-  // (window as any).consoleApp = appController;
+// 環境檢測跟啟動
+function initializeApp(): boolean {
+  // 檢測執行這段code的環境是不是在瀏覽器環境中執行
+  // true → window 是 undefined--->代表 現在的執行環境沒有 window 物件。
+  // SSR,Node環境有自己的終端
+  if (typeof window === "undefined") {
+    return false;
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootsStartUp, { once: true });
+    return false;
+  } else {
+    bootsStartUp();
+    return true;
+  }
 }
-
-// DOM 載入完成後啟動console監聽器應用
-if (document.readyState === "loading") {
-  // 因為有once所以不用卸載這個監聽器
-  document.addEventListener("DOMContentLoaded", bootsStartUp, { once: true });
-} else {
-  bootsStartUp();
-}
+initializeApp();

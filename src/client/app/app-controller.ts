@@ -1,8 +1,8 @@
 // src / client / app / app - controller.ts;
 
 import { consoleMonitor } from "../core";
-import logPage from "./html/console-page.html?raw";
-
+import { testConsoleMonitor } from "../utils";
+import logPage from "../../assets/template/console-page.html?raw";
 /**
  * 應用控制器 - 管理應用的生命週期和狀態
  *
@@ -35,7 +35,7 @@ export function appController() {
     if (import.meta.env.DEV) {
       console.log("應用已啟動 - 開發模式");
       // 取消註釋以啟用測試
-      // testConsoleMonitor();
+      testConsoleMonitor();
     }
   };
 
@@ -48,7 +48,7 @@ export function appController() {
       }
 
       //初始化應用
-      if (!initializeDOM) {
+      if (!initializeDOM()) {
         console.error("初始化DOM失敗");
         return false;
       }

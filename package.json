@@ -9,13 +9,13 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/inpage-console.es.js",
-      "require": "./dist/inpage-console.umd.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/inpage-console.umd.js"
     },
     "./server": {
-      "import": "./dist/server.js",
-      "types": "./dist/server.d.ts"
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
     }
   },
   "files": [
@@ -38,14 +38,14 @@
   "scripts": {
     "dev": "concurrently \"pnpm dev:frontend\" \"pnpm dev:backend\"",
     "dev:frontend": "vite",
-    "dev:backend": "nodemon --exec tsx src/backend/main.ts",
+    "dev:backend": "nodemon --exec tsx src/server/api/main.ts",
     "build": "tsc && vite build",
     "build:lib": "vite build --mode lib",
     "build:server": "tsc --project tsconfig.server.json",
     "prepare": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "preview": "vite preview",
-    "start:backend": "tsx src/backend/main.ts"
+    "start:backend": "tsx src/server/api/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

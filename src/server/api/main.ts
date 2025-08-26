@@ -7,7 +7,7 @@ const app = new Hono();
 app.get('/', c => c.text('Hono!'));
 app.get('/api/log', c => c.json({message: 'Hello from Hono!'}));
 
-const port = 8174;
+const port = 8175;
 console.log(`Server is running on port ${port}`);
 
 serve({

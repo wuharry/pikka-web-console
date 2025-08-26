@@ -1,3 +1,4 @@
+// src\mian.ts
 import "./client/app/main";
 /**
  *

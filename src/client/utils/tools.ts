@@ -1,3 +1,6 @@
+
+// 工具函數集合
+// src\client\utils\tools.ts
 export const safeStringify = (arg: unknown) => {
   try {
     return typeof arg === "string" ? arg : JSON.stringify(arg);

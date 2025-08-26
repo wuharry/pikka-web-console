@@ -4,8 +4,8 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const filename = fileURLToPath(import.meta.url);
+const dirname = path.dirname(filename);
 
 export default defineConfig(({ mode, command }) => {
   // ─────────────────────────────────────────────
@@ -67,12 +67,11 @@ export default defineConfig(({ mode, command }) => {
     },
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "src"),
-        "@server": path.resolve(__dirname, "src/server"),
-        "@client": path.resolve(__dirname, "src/client"),
-        "@types": path.resolve(__dirname, "src/shared/types"),
-        "@assets": path.resolve(__dirname, "src/assets"),
-        "@utils": path.resolve(__dirname, "src/utils"),
+        "@": path.resolve(dirname, "src"),
+        "@client": path.resolve(dirname, "src/client"),
+        "@types": path.resolve(dirname, "src/shared/types"),
+        "@assets": path.resolve(dirname, "src/assets"),
+        "@utils": path.resolve(dirname, "src/utils"),
       },
     },
 

@@ -1,20 +1,20 @@
 // src / client / app / app - controller.ts;
-
-import { consoleMonitor } from "../core";
+import { createUIController } from "@/client/components/main";
 import { testConsoleMonitor } from "../utils";
-import logPage from "../../assets/template/console-page.html?raw";
+import logPage from "@assets/template/console-page.html?raw";
+
 /**
  * 應用控制器 - 管理應用的生命週期和狀態
  *
- * 此做法是根據以下技術去實作
- *  Layered Architecture 分層架構 - Controller Layer
- *
- *
+ * 技術實作基礎：
+ * Layered Architecture 分層架構 - Application Layer
+ * 職責：協調各層，管理應用生命週期，不包含具體業務邏輯
  */
 
 export function appController() {
   let isInitialized = false;
   let isStarted = false;
+  let ui: ReturnType<typeof createUIController> | null = null;
 
   const initializeDOM = (): boolean => {
     const app = document.querySelector<HTMLElement>("#pikka-console-web");
@@ -26,9 +26,17 @@ export function appController() {
 
     return true;
   };
-  const startCoreServices = (): void => {
-    consoleMonitor();
+
+  const startCoreServices = (): boolean => {
+    // render跟掛載監聽器
+    ui = createUIController();
+    ui.render();
+    if (!ui) {
+      console.error("UI 控制器未初始化，無法啟動服務");
+      return false;
+    }
     console.log("核心服務已啟動");
+    return true;
   };
 
   const initializeDevelopmentMode = (): void => {
@@ -55,7 +63,6 @@ export function appController() {
       // 啟動console監聽程序
       startCoreServices();
       // 啟動開發者模式
-      initializeDevelopmentMode();
       isInitialized = true;
 
       return true;
@@ -69,6 +76,12 @@ export function appController() {
         console.log("應用已啟動");
         return true;
       }
+      if (!startCoreServices()) {
+        console.error("核心服務啟動失敗");
+        return false;
+      }
+      initializeDevelopmentMode();
+
       isStarted = true;
       return true;
     },

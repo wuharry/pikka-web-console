@@ -8,26 +8,21 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-
+    "types": ["vite/client"],
     /* 模組系統 Bundler mode */
     "module": "ESNext",
     "isolatedModules": true,
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
+    "verbatimModuleSyntax": true, ////這個好像會影響到自動引入提示
     "moduleDetection": "force",
     "noEmit": true,
 
     /* 路徑解析 */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@server/*": ["src/server/*"],
-      "@client/*": ["src/client/*"],
-      "@types/*": ["src/shared/types/*"],
-      "@assets/*": ["src/assets/*"],
-      "@utils/*": ["src/utils/*"]
+      "@/*": ["src/*"]
     },
 
     // 型別檢查增強

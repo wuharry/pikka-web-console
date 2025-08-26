@@ -1,26 +1,28 @@
 {
   "name": "pikka-web-console",
   "private": false,
-  "version": "0.0.0",
-  "description": "檢視console by web 的套件(尚未完成)",
+  "version": "0.0.1",
+  "description": "開發時可以額外開web檢視console的套件(尚未完成)",
+  "bin": {
+    "pikka-console": "./bin/cli.js",
+    "console-monitor": "./bin/cli.js"
+  },
   "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.esm.js",
+  "main": "dist/inpage-console.umd.js",
+  "module": "dist/inpage-console.es.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/inpage-console.es.js",
       "require": "./dist/inpage-console.umd.js"
-    },
-    "./server": {
-      "types": "./dist/server.d.ts",
-      "import": "./dist/server.js"
     }
   },
   "files": [
     "dist",
-    "README.md"
+    "bin",
+    "README.md",
+    "LICENSE"
   ],
   "keywords": [
     "console",
@@ -39,10 +41,9 @@
     "dev": "concurrently \"pnpm dev:frontend\" \"pnpm dev:backend\"",
     "dev:frontend": "vite",
     "dev:backend": "nodemon --exec tsx src/server/api/main.ts",
-    "build": "tsc && vite build",
-    "build:lib": "vite build --mode lib",
-    "build:server": "tsc --project tsconfig.server.json",
-    "prepare": "npm run build",
+    "build": "npm run build:lib",
+    "build:lib": "tsc --project tsconfig.build.json && vite build --mode lib",
+    "prepare": "npm run build:lib",
     "test": "echo \"Error: no test specified\" && exit 1",
     "preview": "vite preview",
     "start:backend": "tsx src/server/api/main.ts"

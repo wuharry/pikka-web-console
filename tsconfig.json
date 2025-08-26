@@ -17,7 +17,9 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true, ////這個好像會影響到自動引入提示
     "moduleDetection": "force",
-    "noEmit": true,
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src",
 
     /* 路徑解析 */
     "baseUrl": ".",

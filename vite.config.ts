@@ -22,6 +22,8 @@ export default defineConfig(({ mode, command }) => {
           fileName: (fmt) => `inpage-console.${fmt}.js`,
           formats: ["es", "umd", "iife"],
         },
+        // 生成類型檔案
+        emitTypes: true,
         rollupOptions: {
           external: ["@hono/node-server", "hono"], // 外部依賴
           output: {

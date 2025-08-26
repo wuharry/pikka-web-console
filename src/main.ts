@@ -1,15 +1,20 @@
 // src\mian.ts
 import "./client/app/main";
+
 /**
- * 套件主要入口點
+ * Pikka Web Console - 主入口點
  *
- * 技術實作基礎：
- * Layered Architecture 分層架構 - Entry Point Layer
+ * 提供開發時的 Web 控制台功能
  *
- * 引入app/main->立即使用
+ * @example
+ * ```typescript
+ * import PikkaWebConsole from 'pikka-web-console';
  *
- * - 作為整個套件的統一入口點
- * - 負責引入客戶端主模組並立即執行
- * - 遵循分層架構的 Entry Point Layer 設計模式
+ * // 自動啟動控制台（推薦用於開發環境）
+ * PikkaWebConsole.init();
  *
+ * // 或者手動控制
+ * const console = PikkaWebConsole.create();
+ * console.start();
+ * ```
  */

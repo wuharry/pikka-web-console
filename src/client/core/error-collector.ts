@@ -2,6 +2,19 @@
 import type { JSRuntimeError, ResourceError } from "../types";
 import { safeStringify } from "@/client/utils";
 
+/**
+ * 錯誤收集器 - 全域錯誤監控和收集
+ *
+ * 技術實作基礎：
+ * Observer Pattern 觀察者模式 + Event Listener Pattern
+ * 職責：監聽全域錯誤事件，統一收集和格式化
+ * - **JavaScript 運行時錯誤**：捕獲 `ErrorEvent` 類型的 JS 錯誤
+ * - **資源載入錯誤**：捕獲圖片、腳本、樣式等資源 404 錯誤
+ * - **Promise 拒絕監控**：監控未處理的 `unhandledrejection` 事件
+ * - **錯誤去重**：使用結構化的 key 策略避免重複錯誤
+ * - **錯誤分類**：区分 JS 錯誤、資源錯誤、Promise 錯誤
+ */
+
 export interface ErrorCollectorStore {
   errorSet: Set<string>;
 }

@@ -8,9 +8,17 @@ import logPage from "@assets/template/console-page.html?raw";
  *
  * 技術實作基礎：
  * Layered Architecture 分層架構 - Application Layer
+ *
+ * @description
  * 職責：協調各層，管理應用生命週期，不包含具體業務邏輯
+ *
+ * **主要職責：**
+ * - **應用狀態管理**：統一管理整個應用的狀態和生命週期
+ * - **模組協調**：作為各個組件（監控器、UI、工具）之間的協調中心
+ * - **DOM 初始化**：負責 HTML 模板掛載和基礎 DOM 結構建立
+ * - **核心服務啟動**：協調 UI 控制器和核心服務的啟動
+ * - **開發模式支援**：提供開發環境下的額外功能和測試
  */
-
 export function appController() {
   let isInitialized = false;
   let isStarted = false;

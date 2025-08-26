@@ -1,6 +1,17 @@
 // src / client / app / main.ts;
-
 import { appController } from "./app-controller";
+
+/**
+ * 客戶端應用入口
+ *
+ * 技術實作基礎：
+ * Layered Architecture 分層架構 - Client App Layer
+ * 職責：環境檢測、DOM 就緒檢測、應用啟動協調
+ * - **環境檢測**：檢測是否在瀏覽器環境中運行，避免 SSR 環境問題
+ *- **DOM 就緒檢測**：智能檢測 DOM 載入狀態，適時啟動應用
+ *- **全域物件掛載**：將應用實例掛載到 `window.consoleApp`
+ *- **應用啟動協調**：調用應用控制器進行啟動流程
+ */
 
 const app = appController();
 

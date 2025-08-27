@@ -8,16 +8,29 @@ const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 
 export default defineConfig(({ mode, command }) => {
+  // 通用的路徑別名配置
+  const aliases = {
+    "@": path.resolve(dirname, "src"),
+    "@client": path.resolve(dirname, "src/client"),
+    "@types": path.resolve(dirname, "src/shared/types"),
+    "@assets": path.resolve(dirname, "src/assets"),
+    "@utils": path.resolve(dirname, "src/utils"),
+  };
+
   // ─────────────────────────────────────────────
   // Library / SDK 打包：vite build --mode lib
   // ─────────────────────────────────────────────
   if (mode === "lib") {
     return {
       plugins: [tailwindcss()],
+      // 🔧 在庫模式也加上路徑別名解析
+      resolve: {
+        alias: aliases,
+      },
       build: {
         outDir: "dist",
         lib: {
-          entry: "src/main.ts", // 你的入口
+          entry: "src/client/app/main.ts", // 🔧 改為客戶端入口
           name: "PikkaWebConsole",
           fileName: (fmt) => `inpage-console.${fmt}.js`,
           formats: ["es", "umd", "iife"],
@@ -25,16 +38,14 @@ export default defineConfig(({ mode, command }) => {
         // 生成類型檔案
         emitTypes: true,
         rollupOptions: {
-          external: ["@hono/node-server", "hono"], // 外部依賴
+          // 🔧 庫模式通常不需要外部依賴（除非你要用戶自己安裝）
+          external: [], // 移除 hono 相關，因為前端不需要
           output: {
-            globals: {
-              hono: "Hono",
-              "@hono/node-server": "HonoNodeServer",
-            },
+            globals: {},
             // ✅ 確保 CSS 檔名固定（若有輸出 CSS）
             assetFileNames: (assetInfo: any) => {
-              const names: string[] | undefined = assetInfo?.names; // rollup v4
-              const legacyName: string | undefined = assetInfo?.name; // 舊版相容
+              const names: string[] | undefined = assetInfo?.names;
+              const legacyName: string | undefined = assetInfo?.name;
               const isCss =
                 names?.some((n) => n.endsWith(".css")) ??
                 legacyName?.endsWith(".css");
@@ -44,8 +55,8 @@ export default defineConfig(({ mode, command }) => {
             },
           },
         },
-        cssCodeSplit: false, // ✅ CSS 打包進 JS（同你原設定）
-        sourcemap: true, // 方便除錯
+        cssCodeSplit: false,
+        sourcemap: true,
         emptyOutDir: true,
       },
     };
@@ -68,15 +79,8 @@ export default defineConfig(({ mode, command }) => {
       },
     },
     resolve: {
-      alias: {
-        "@": path.resolve(dirname, "src"),
-        "@client": path.resolve(dirname, "src/client"),
-        "@types": path.resolve(dirname, "src/shared/types"),
-        "@assets": path.resolve(dirname, "src/assets"),
-        "@utils": path.resolve(dirname, "src/utils"),
-      },
+      alias: aliases,
     },
-
     fs: {
       strict: true,
     },

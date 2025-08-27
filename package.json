@@ -16,11 +16,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/inpage-console.es.js",
       "require": "./dist/inpage-console.umd.js"
-    }
+    },
+    "./dist/inpage-console.css": "./dist/inpage-console.css"
   },
   "files": [
     "dist",
-    "bin",
     "README.md",
     "LICENSE"
   ],
@@ -29,18 +29,25 @@
     "debug",
     "web",
     "development",
-    "logging"
+    "logging",
+    "monitor",
+    "javascript",
+    "typescript",
+    "frontend"
   ],
-  "author": "吳浩維 wu harry<whw880218we@gmail.com>",
+  "author": "吳浩維 wu harry <whw880218we@gmail.com>",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wuharry/pikka-web-console.git"
+    "url": "git+https://github.com/wuharry/pikka-web-console.git"
   },
-  "homepage": "https://github.com/wuharry/pikka-web-console",
+  "homepage": "https://github.com/wuharry/pikka-web-console#readme",
+  "bugs": {
+    "url": "https://github.com/wuharry/pikka-web-console/issues"
+  },
   "scripts": {
-    "dev": "concurrently \"pnpm dev:frontend\" \"pnpm dev:backend\"",
-    "dev:frontend": "vite",
-    "dev:backend": "nodemon --exec tsx src/server/api/main.ts",
+    "dev": "vite",
+    "dev:lib": "vite build --mode lib --watch",
     "build": "npm run build:lib",
     "build:lib": "tsc --project tsconfig.build.json && vite build --mode lib",
     "prepare": "npm run build:lib",

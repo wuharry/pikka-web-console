@@ -1,5 +1,4 @@
 // src/client/core/error-collector.ts
-import type { JSRuntimeError, ResourceError } from "../types";
 import { safeStringify } from "@/client/utils";
 
 /**
@@ -22,7 +21,6 @@ export interface ErrorCollectorStore {
 const errorCollector = ({ errorSet }: ErrorCollectorStore) => {
   const onError = (e: ErrorEvent | Event) => {
     let key: string;
-    let errorData: ResourceError | JSRuntimeError;
 
     // HACK:當e.target !== window → 資源載入錯誤,e.target 是載入失敗的 DOM 元素（如 <img>, <script>, <link>）
     // EX:圖片 404、腳本載入失敗、CSS 檔案不存在
@@ -41,27 +39,15 @@ const errorCollector = ({ errorSet }: ErrorCollectorStore) => {
       // EX:RES|IMG|image.jpg(url)
       // EX:RES|SCRIPT|script.js
       key = `RES|${element.tagName}|${element.src || element.href || ""}`;
-      errorData = {
-        type: "resource",
-        target: e.target,
-      } as const;
     } else {
       //HACK:e.target === window → JavaScript 運行時錯誤,所以e.target 是 window 物件
       // EX:undefined.property、語法錯誤、型別錯誤
       const errorEvent = e as ErrorEvent;
-      errorData = {
-        type: "js-runtime",
-        message: errorEvent.message,
-        source: errorEvent.filename,
-        line: errorEvent.lineno,
-        column: errorEvent.colno,
-      } as const;
+
       key = `JS|${errorEvent.message}|${errorEvent.filename}|${errorEvent.lineno}|${errorEvent.colno}`;
     }
     if (errorSet.has(key)) return;
     errorSet.add(key);
-    // normalized = normalizeError(errorData);
-    // errorSet.add(addTimestamp(normalized));
   };
 
   window.addEventListener("error", onError, { capture: true });

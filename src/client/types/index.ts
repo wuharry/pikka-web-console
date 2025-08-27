@@ -2,3 +2,4 @@
 
 export * from "./console.types";
 export * from "./error.types";
+export * from "./ports.types";

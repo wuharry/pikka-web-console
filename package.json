@@ -1,7 +1,7 @@
 {
   "name": "pikka-web-console",
   "private": false,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "開發時可以額外開web檢視console的套件(尚未完成)",
   "bin": {
     "pikka-console": "./bin/cli.js",

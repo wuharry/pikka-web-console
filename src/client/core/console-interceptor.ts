@@ -1,6 +1,6 @@
 // src/client/core/console-interceptor.ts
 import { safeStringify, addTimestamp } from "../utils";
-import type { PartialConsoleDataStore } from "@/client/types";
+import type { ConsolePayload } from "@/client/types";
 
 /**
  * 控制台攔截器 - 攔截和監控原生 console 方法
@@ -16,52 +16,71 @@ import type { PartialConsoleDataStore } from "@/client/types";
  *
  */
 
-const consoleInterceptor = ({
-  errorSet = new Set<string>(),
-  infoList = [],
-  warnList = [],
-  logList = [],
-}: PartialConsoleDataStore) => {
-  const { log, error, warn, info } = console;
+const createConsoleInterceptor = ({
+  callback,
+}: {
+  callback: (data: ConsolePayload) => void;
+}) => {
+  const { log, warn, info } = console;
 
-  console.log = (...args: unknown[]) => {
-    const message = args.map(safeStringify).join(" ");
-    logList.push(addTimestamp(message));
-    // HACK:呼叫原本的console.log-->不影響到原本的方法
-    log.apply(console, args);
+  const start = () => {
+    console.log = (...args: unknown[]) => {
+      const payload: ConsolePayload = {
+        level: "log",
+        args,
+        message: args.map(safeStringify).join(" "),
+        timestamp: addTimestamp(),
+        source: {
+          tabId: "",
+          url: location.pathname + location.search + location.hash, //用來檢視log的頁面路徑跟其參數
+          origin: location.origin, //域名
+        },
+      };
+      callback(payload);
+      // 同理apply(console, args)但是更簡潔更現代
+      console[payload.level](...args);
+    };
+    console.warn = (...args: unknown[]) => {
+      const payload: ConsolePayload = {
+        level: "warn",
+        args,
+        message: args.map(safeStringify).join(" "),
+        timestamp: addTimestamp(),
+        source: {
+          tabId: "",
+          url: location.pathname + location.search + location.hash, //用來檢視log的頁面路徑跟其參數
+          origin: location.origin, //域名
+        },
+      };
+      console[payload.level](...args);
+    };
+
+    console.info = (...args: unknown[]) => {
+      const payload: ConsolePayload = {
+        level: "warn",
+        args,
+        message: args.map(safeStringify).join(" "),
+        timestamp: addTimestamp(),
+        source: {
+          tabId: "",
+          url: location.pathname + location.search + location.hash, //用來檢視log的頁面路徑跟其參數
+          origin: location.origin, //域名
+        },
+      };
+      console[payload.level](...args);
+    };
   };
 
-  console.error = (...args: unknown[]) => {
-    const message = args.map(safeStringify).join(" ");
-    errorSet.add(addTimestamp(message));
-
-    error.apply(console, args);
-  };
-
-  console.warn = (...args: unknown[]) => {
-    const message = args.map(safeStringify).join(" ");
-    warnList.push(addTimestamp(message));
-
-    // HACK:呼叫原本的console.warn-->不影響到原本的方法
-    warn.apply(console, args);
-  };
-
-  console.info = (...args: unknown[]) => {
-    const message = args.map(safeStringify).join(" ");
-    infoList.push(addTimestamp(message));
-    info.apply(console, args);
-  };
-
-  const restoreLog = () => {
+  const stop = () => {
     console.log = log;
     console.info = info;
     console.warn = warn;
-    console.error = error;
   };
 
   return {
-    restoreLog,
+    stop,
+    start,
   };
 };
 
-export { consoleInterceptor };
+export { createConsoleInterceptor };

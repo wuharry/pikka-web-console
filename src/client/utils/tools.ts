@@ -1,17 +1,50 @@
-
 // 工具函數集合
 // src\client\utils\tools.ts
-export const safeStringify = (arg: unknown) => {
+
+export const safeStringify = (arg: unknown): string => {
+  // 避免循環引用object1.A=object1,
+  // 使用WeakSet來追蹤已處理的物件,WeakSet跟Set類似,但不會阻止垃圾回收(更加安全)
+  const seen = new WeakSet<object>();
+  const argTypeMappingFunc = {
+    string: (arg: string) => arg,
+    number: (arg: number) => arg.toString(),
+    boolean: (arg: boolean) => arg.toString(),
+    object: (arg: object) =>
+      JSON.stringify(arg, (_key, value) => {
+        if (typeof value === "object" && value !== null) {
+          // 如果循環引用
+          if (seen.has(value)) return "[Circular]";
+          seen.add(value);
+        }
+        if (value instanceof Error) {
+          return {
+            name: value.name,
+            message: value.message,
+            stack: value.stack,
+          };
+        }
+        return value;
+      }),
+    function: (arg: Function) => `[Function: ${arg.name || "anonymous"}]`,
+    symbol: (arg: symbol) => arg.toString(),
+    bigint: (arg: bigint) => arg.toString() + "n",
+    undefined: () => "undefined",
+  } as const;
+
   try {
-    return typeof arg === "string" ? arg : JSON.stringify(arg);
+    const type = typeof arg;
+    if (type in argTypeMappingFunc) {
+      const handler = argTypeMappingFunc[type];
+      return handler(arg as never);
+    }
+    return String(arg);
   } catch {
     return "[Unserializable]";
   }
 };
 
-export const addTimestamp = (message: string) => {
-  const timestamp = new Date().toLocaleTimeString();
-  return `[${timestamp}] ${message}`;
+export const addTimestamp = () => {
+  return Date.now();
 };
 
 export function testConsoleMonitor() {

@@ -18,11 +18,7 @@ export function escapeHtml(text: string): string {
  * @param colorClass - CSS 顏色類名
  * @returns HTML 字符串
  */
-export function createMessageHtml(
-  message: string,
-  type: string,
-  colorClass: string
-): string {
+export function createMessageHtml(): string {
   return `
     <div class="console-message border-b border-gray-200 p-2 hover:bg-gray-50">
       <span class="text-xs font-bold ${colorClass}">[${type.toUpperCase()}]</span>
@@ -40,7 +36,7 @@ export function createMessageHtml(
  * @returns HTML 字符串
  */
 export function createMessageListHtml(
-  messages: string[],
+  messages: string,
   type: string,
   colorClass: string
 ): string {

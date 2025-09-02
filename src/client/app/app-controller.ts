@@ -18,7 +18,9 @@ import logPage from "@assets/template/console-page.html?raw";
  * - **DOM 初始化**：負責 HTML 模板掛載和基礎 DOM 結構建立
  * - **核心服務啟動**：協調 UI 控制器和核心服務的啟動
  * - **開發模式支援**：提供開發環境下的額外功能和測試
+ *
  */
+
 export function appController() {
   let isInitialized = false;
   let isStarted = false;

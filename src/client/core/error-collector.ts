@@ -1,5 +1,6 @@
 // src/client/core/error-collector.ts
-import { safeStringify } from "@/client/utils";
+import { safeStringify, addTimestamp } from "@/client/utils";
+import type { ErrorPayload } from "@/client/types";
 
 /**
  * 錯誤收集器 - 全域錯誤監控和收集
@@ -14,60 +15,90 @@ import { safeStringify } from "@/client/utils";
  * - **錯誤分類**：区分 JS 錯誤、資源錯誤、Promise 錯誤
  */
 
-export interface ErrorCollectorStore {
-  errorSet: Set<string>;
-}
-
-const errorCollector = ({ errorSet }: ErrorCollectorStore) => {
+const createErrorCollector = ({
+  callback,
+}: {
+  callback: (data: ErrorPayload) => void;
+}) => {
+  const { error } = console;
+  console.error = (...args: unknown[]) => {
+    const payload: ErrorPayload = {
+      // name:console.error 第一個參數如果是 Error 物件,讀取名稱，否則為 Error
+      name: args[0] instanceof Error ? args[0].name : "Error",
+      // message:console.error 第一個參數如果是 Error 物件,讀取訊息，否則為第一個參數
+      message:
+        args[0] instanceof Error ? args[0].message : safeStringify(args[0]),
+      // stack:console.error 第一個參數如果是 Error 物件,讀取堆疊，否則為空
+      stack: args[0] instanceof Error ? args[0].stack : "",
+      cause: args[0] instanceof Error ? args[0].cause : undefined,
+      timestamp: addTimestamp(),
+      source: {
+        tabId: "",
+        url: location.pathname + location.search + location.hash, //用來檢視log的頁面路徑跟其參數
+        origin: location.origin, //域名
+      },
+    };
+    callback(payload);
+    error.apply(console, args);
+  };
   const onError = (e: ErrorEvent | Event) => {
-    let key: string;
-
-    // HACK:當e.target !== window → 資源載入錯誤,e.target 是載入失敗的 DOM 元素（如 <img>, <script>, <link>）
-    // EX:圖片 404、腳本載入失敗、CSS 檔案不存在
-    // 資源錯誤：Event 型別
-    if (e.target && e.target !== window) {
-      // 交集型別（intersection）斷言
-      // 意思是e.target 是 HTMLElement型別的同時「可能」還有 src/href 兩個可選屬性。
-      // 這些元素都是 HTMLElement，但有不同的特殊屬性
-      // <img src="image.jpg">        // HTMLImageElement - 有 src
-      // <script src="script.js">     // HTMLScriptElement - 有 src
-      // <link href="style.css">      // HTMLLinkElement - 有 href
-      // <a href="page.html">         // HTMLAnchorElement - 有 href
-      // <div>                        // HTMLDivElement - 沒有 src/href
-      const element = e.target as HTMLElement & { src?: string; href?: string };
-      // key會是Resource error(簡寫)|來源類別(元素標籤類型)|取到資源的 URL
-      // EX:RES|IMG|image.jpg(url)
-      // EX:RES|SCRIPT|script.js
-      key = `RES|${element.tagName}|${element.src || element.href || ""}`;
-    } else {
-      //HACK:e.target === window → JavaScript 運行時錯誤,所以e.target 是 window 物件
-      // EX:undefined.property、語法錯誤、型別錯誤
-      const errorEvent = e as ErrorEvent;
-
-      key = `JS|${errorEvent.message}|${errorEvent.filename}|${errorEvent.lineno}|${errorEvent.colno}`;
-    }
-    if (errorSet.has(key)) return;
-    errorSet.add(key);
+    const payload: ErrorPayload = {
+      // name:如果是ErrorEvent,讀取名稱，否則為Error
+      name: e instanceof ErrorEvent ? e.error?.name || "Error" : "Error",
+      // message:如果是ErrorEvent,讀取訊息，否則為序列化後的錯誤物件
+      message: e instanceof ErrorEvent ? e.error?.message : safeStringify(e),
+      // stack:如果是ErrorEvent,讀取[錯誤發生位置stack]，否則為空
+      stack: e instanceof ErrorEvent ? e.error?.stack : "",
+      timestamp: addTimestamp(),
+      source: {
+        tabId: "",
+        url: location.pathname + location.search + location.hash, //用來檢視log的頁面路徑跟其參數
+        origin: location.origin, //域名
+      },
+    };
+    callback(payload);
   };
 
-  window.addEventListener("error", onError, { capture: true });
   const onRejection = (errorEvent: PromiseRejectionEvent) => {
     const raw = `Promise UnhandledRejection: ${safeStringify(errorEvent.reason)}`;
     // EX: PR|Promise UnhandledRejection: undefined
-    const key = `PR|${raw}`;
-    if (errorSet.has(key)) return;
-    errorSet.add(key);
+    // const key = `PR|${raw}`;
+    const payload: ErrorPayload = {
+      name:
+        errorEvent.reason && errorEvent.reason instanceof Error
+          ? errorEvent.reason.name
+          : "Error",
+      message:
+        errorEvent.reason && errorEvent.reason instanceof Error
+          ? errorEvent.reason.message
+          : raw,
+      stack:
+        errorEvent.reason && errorEvent.reason instanceof Error
+          ? errorEvent.reason.stack
+          : "",
+      timestamp: addTimestamp(),
+      source: {
+        tabId: "",
+        url: location.pathname + location.search + location.hash, //用來檢視log的頁面路徑跟其參數
+        origin: location.origin, //域名
+      },
+    };
+    callback(payload);
   };
 
-  window.addEventListener("unhandledrejection", onRejection);
-
+  const start = () => {
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+  };
   const stop = () => {
     window.removeEventListener("error", onError);
     window.removeEventListener("unhandledrejection", onRejection);
+    console.error = error;
   };
   return {
+    start,
     stop,
   };
 };
 
-export { errorCollector };
+export { createErrorCollector };

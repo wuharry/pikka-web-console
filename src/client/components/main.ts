@@ -1,6 +1,6 @@
 // src/client/components/main.ts
-import { createConsoleInterceptor } from "@/client/core";
 import { renderTabs } from "@/client/components/console-renderer";
+import { consumer as createConsumer } from "../core/consumer";
 
 /**
  * UI 控制器 - 管理使用者介面互動和渲染
@@ -16,10 +16,10 @@ import { renderTabs } from "@/client/components/console-renderer";
  */
 
 export function createUIController() {
-  const monitorService = createConsoleInterceptor();
-  const render = () => renderTabs(monitorService);
+  const messageConsumer = createConsumer("pikka-web-console-channel");
+  const render = () => renderTabs(messageConsumer.getChannelData());
   return {
     render,
-    stop: monitorService.cleanUp, //‼️重要：停止監聽跟釋放資源以及還原log用的
+    stop: messageConsumer.cleanUp, //‼️重要：停止監聽跟釋放資源以及還原log用的
   };
 }

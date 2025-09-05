@@ -1,6 +1,6 @@
 //src/client/core/main.ts
 import { producer as createProducer } from "./producer";
-import type { ConsoleService, ConsoleDataStore } from "../types/console.types";
+import type { ConsoleService } from "@/client/types";
 
 /**
  * 核心服務層 - 提供 console 攔截和錯誤收集服務

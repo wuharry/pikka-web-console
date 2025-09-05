@@ -1,69 +1,52 @@
-// src/client/components/console-renderer.ts
-import type { ErrorPayload, ConsolePayload } from "../types";
-import { createMessageListHtml, escapeHtml } from "@/client/utils/html-utils";
+import type { ErrorPayload, ConsolePayload, StateStore } from "../types";
+import {
+  createMessageListHtml,
+  renderAllMessages,
+  buildContainer,
+} from "@/client/utils/html-utils";
 
 const CONTAINER_CLASS = "console-content max-h-96 overflow-y-auto";
-const TAB_CONTENT_MAP = {
-  log: (m: ConsolePayload) =>
-    `<div class="${CONTAINER_CLASS}">${createMessageListHtml(m.message, "log", "text-blue-600")}</div>`,
-  error: (m: ErrorPayload) =>
-    `<div class="${CONTAINER_CLASS}">${createMessageListHtml(Array.from(m.errorSet), "error", "text-red-600")}</div>`,
-  warn: (m: ConsolePayload) =>
-    `<div class="${CONTAINER_CLASS}">${createMessageListHtml(m.warnList, "warn", "text-yellow-600")}</div>`,
-  info: (m: ConsolePayload) =>
-    `<div class="${CONTAINER_CLASS}">${createMessageListHtml(m.infoList, "info", "text-green-600")}</div>`,
-  all: (m: unknown) => renderAllMessages(m),
-} as const;
-const TAB_ACTIVE_CLASSES: Record<keyof typeof TAB_CONTENT_MAP, string> = {
+
+const TAB_ACTIVE_CLASSES = {
   log: "bg-blue-600",
   error: "bg-red-600",
   warn: "bg-yellow-600",
   info: "bg-green-600",
   all: "bg-slate-700",
-};
+} as const;
 
-function renderAllMessages(): string {
-  const allMessages = [
-    ...Array.from(monitorData.errorSet).map((message) => ({
-      message,
-      type: "error",
-      color: "text-red-600",
-    })),
-    ...monitorData.warnList.map((message: string) => ({
-      message,
-      type: "warn",
-      color: "text-yellow-600",
-    })),
-    ...monitorData.logList.map((message: string) => ({
-      message,
-      type: "log",
-      color: "text-blue-600",
-    })),
-    ...monitorData.infoList.map((message: string) => ({
-      message,
-      type: "info",
-      color: "text-green-600",
-    })),
-  ];
+const TAB_CONTENT_MAP = {
+  log: (message: ConsolePayload[]) =>
+    buildContainer(
+      createMessageListHtml({ messages: message, colorClass: "text-blue-600" }),
+      CONTAINER_CLASS
+    ),
+  error: (message: ErrorPayload[]) =>
+    buildContainer(
+      createMessageListHtml({ messages: message, colorClass: "text-red-600" }),
+      CONTAINER_CLASS
+    ),
+  warn: (message: ConsolePayload[]) =>
+    buildContainer(
+      createMessageListHtml({
+        messages: message,
+        colorClass: "text-yellow-600",
+      }),
+      CONTAINER_CLASS
+    ),
+  info: (message: ConsolePayload[]) =>
+    buildContainer(
+      createMessageListHtml({
+        messages: message,
+        colorClass: "text-green-600",
+      }),
+      CONTAINER_CLASS
+    ),
+  all: (message: (ConsolePayload | ErrorPayload)[]) =>
+    renderAllMessages({ messages: message, containerClass: CONTAINER_CLASS }),
+} as const;
 
-  if (allMessages.length === 0) {
-    return '<div class="text-gray-500 p-4">No messages</div>';
-  }
-
-  const messagesHtml = allMessages
-    .map(
-      ({ message, type, color }) => `
-        <div class="console-message border-b border-gray-200 p-2 hover:bg-gray-50">
-          <span class="text-xs font-bold ${color}">[${type.toUpperCase()}]</span>
-          <span class="text-xs text-gray-400 ml-2">[${new Date().toLocaleTimeString()}]</span>
-          <pre class="text-sm font-mono mt-1 whitespace-pre-wrap">${escapeHtml(message)}</pre>
-        </div>
-      `
-    )
-    .join("");
-
-  return `<div class="console-content max-h-96 overflow-y-auto">${messagesHtml}</div>`;
-}
+type TabKey = keyof typeof TAB_CONTENT_MAP;
 
 const clearAllTabStats = (
   tabs: NodeListOf<HTMLButtonElement>,
@@ -74,15 +57,8 @@ const clearAllTabStats = (
   );
 };
 
-// const clearAllTabContent = () => {
-//   const content = document.querySelector("#tab-content");
-//   if (content) {
-//     content.innerHTML = "";
-//   }
-// };
-
 const activateTab = (tab: HTMLButtonElement) => {
-  const tabType = tab.innerText as keyof typeof TAB_ACTIVE_CLASSES;
+  const tabType = (tab.dataset.tab as TabKey) || "all";
   tab.classList.add("active", "text-gray-50", TAB_ACTIVE_CLASSES[tabType]);
 };
 
@@ -90,73 +66,62 @@ const getTabContent = ({
   tabType,
   consoleData,
 }: {
-  tabType: string;
-  consoleData: ConsoleDataStore;
+  tabType: TabKey;
+  consoleData:
+    | ConsolePayload[]
+    | ErrorPayload[]
+    | (ConsolePayload | ErrorPayload)[];
 }): string => {
-  return TAB_CONTENT_MAP[tabType as keyof typeof TAB_CONTENT_MAP](consoleData);
+  if (tabType === "all") {
+    return TAB_CONTENT_MAP.all(consoleData);
+  }
+  if (tabType === "error") {
+    return TAB_CONTENT_MAP.error(consoleData as ErrorPayload[]);
+  }
+  return TAB_CONTENT_MAP[tabType](consoleData as ConsolePayload[]);
 };
 
 const switchContent = ({
   tabType,
   consoleData,
 }: {
-  tabType: string;
-  consoleData: ConsoleDataStore;
+  tabType: TabKey;
+  consoleData:
+    | ConsolePayload[]
+    | ErrorPayload[]
+    | (ConsolePayload | ErrorPayload)[];
 }) => {
   const content = document.querySelector("#tab-content");
   if (content) {
     content.innerHTML = getTabContent({
-      tabType,
-      consoleData,
+      tabType: tabType,
+      consoleData: consoleData,
     });
   }
 };
 
-export function renderTabs(monitor: ConsoleService) {
-  const consoleData = monitor.getterStore();
-  const tabList = document.querySelector<HTMLUListElement>("#tab-links")!;
+export function renderTabs(data: StateStore) {
+  const tabList = document.querySelector<HTMLUListElement>("#tab-links");
+  if (!tabList) return;
+
   const tabs =
     tabList.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
-
   const ALL_BG_COLORS = Object.values(TAB_ACTIVE_CLASSES);
 
   tabs.forEach((button) => {
     button.addEventListener("click", (e) => {
-      const target = e.target as HTMLButtonElement;
+      const target = e.currentTarget as HTMLButtonElement;
 
-      // 移除所有 tab 的 active 狀態
       clearAllTabStats(tabs, ALL_BG_COLORS);
-
-      // 移除所有 tab 的 content
-      // clearAllTabContent();
-
-      // 添加 active 狀態到當前 tab
       activateTab(target);
 
-      switchContent({ tabType: target.innerText.toLowerCase(), consoleData });
+      const tabType = (target.dataset.tab as TabKey) || "all";
+      const AllData = [...data.error, ...data.info, ...data.warn, ...data.log];
+      switchContent({
+        tabType,
+        consoleData:
+          tabType === "all" ? AllData : data[tabType as keyof StateStore],
+      });
     });
   });
 }
-
-// function createMessageList(
-//   messages: string[],
-//   type: string,
-//   colorClass: string
-// ) {
-//   if (messages.length === 0) {
-//     return `<div class="text-gray-500 p-4">No ${type} messages</div>`;
-//   }
-//   return messages
-//     .map(
-//       (msg) => `
-//         <div class="console-message border-b border-gray-200 p-2 hover:bg-gray-50">
-//           <span class="text-xs font-bold ${colorClass}">[${type.toUpperCase()}]</span>
-//           <span class="text-xs text-gray-400 ml-2">[${new Date().toLocaleTimeString()}]</span>
-//           <pre class="text-sm font-mono mt-1 whitespace-pre-wrap">${escapeHtml(
-//             msg
-//           )}</pre>
-//         </div>
-//       `
-//     )
-//     .join("");
-// }

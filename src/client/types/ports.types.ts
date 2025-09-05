@@ -32,15 +32,18 @@ export interface ControlPayload {
 }
 
 // 廣播頻道訊息格式
-//
-export type ChannelMessage =
-  | { kind: "CONSOLE"; data: ConsolePayload }
-  | { kind: "ERROR"; data: ErrorPayload }
-  | { kind: "CONTROL"; data: ControlPayload }
-  | { kind: "BATCH"; data: ConsolePayload[] };
 
-export interface broadcastChannelCallback {
-  (data: ChannelMessage): void;
+export type ChannelMessage = ConsolePayload[] | ErrorPayload[];
+
+export interface ConsumerHandle {
+  getChannelData: () => StateStore;
+  cleanUp: () => void;
+}
+export interface ConsumerData {
+  error: ErrorPayload[];
+  info: ConsolePayload[];
+  warn: ConsolePayload[];
+  log: ConsolePayload[];
 }
 
 export interface StateStore {

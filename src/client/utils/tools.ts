@@ -79,3 +79,13 @@ export function testConsoleMonitor() {
     document.body.appendChild(img);
   }, 500);
 }
+
+export const formatTimestamp = (timestamp: number) => {
+  return new Date(timestamp).toLocaleTimeString("zh-TW", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    fractionalSecondDigits: 3,
+  });
+};

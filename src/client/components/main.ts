@@ -16,10 +16,19 @@ import { consumer as createConsumer } from "../core/consumer";
  */
 
 export function createUIController() {
-  const messageConsumer = createConsumer("pikka-web-console-channel");
-  const render = () => renderTabs(messageConsumer.getChannelData());
+  let messageConsumer: ReturnType<typeof createConsumer>;
+
+  // 渲染函數
+  const render = () => {
+    const data = messageConsumer.getChannelData();
+    renderTabs(data);
+  };
+
+  // 🚀 創建 consumer，並傳入重新渲染回調
+  messageConsumer = createConsumer("pikka-web-console-channel", render);
+
   return {
     render,
-    stop: messageConsumer.cleanUp, //‼️重要：停止監聽跟釋放資源以及還原log用的
+    stop: messageConsumer.cleanUp,
   };
 }

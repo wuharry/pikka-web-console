@@ -8,11 +8,13 @@ export const producer = (channel: string) => {
   const consoleInterceptor = createConsoleInterceptor({
     callback: (data) => {
       broadcastChannel.postMessage(data);
+      // console.log("Sent data:", data);
     },
   });
   const errorCollector = createErrorCollector({
     callback: (data) => {
       broadcastChannel.postMessage(data);
+      // console.log("Sent error:", data);
     },
   });
   const start = () => {

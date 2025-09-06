@@ -19,7 +19,7 @@ function bootsStartUp(): void {
   const success = app.bootUp();
 
   if (!success) {
-    console.error("應用啟動失敗");
+    // console.error("應用啟動失敗");
     return;
   }
 

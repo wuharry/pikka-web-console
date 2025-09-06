@@ -23,28 +23,9 @@ export interface ErrorPayload {
   timestamp: number;
   source: SourceMeta;
 }
-// 控制命令
-export type ControlType = "INIT" | "HEARTBEAT" | "CLEAR" | "PAUSE" | "RESUME";
-export interface ControlPayload {
-  type: ControlType;
-  reason?: string;
-  source: SourceMeta;
-}
 
 // 廣播頻道訊息格式
-
 export type ChannelMessage = ConsolePayload[] | ErrorPayload[];
-
-export interface ConsumerHandle {
-  getChannelData: () => StateStore;
-  cleanUp: () => void;
-}
-export interface ConsumerData {
-  error: ErrorPayload[];
-  info: ConsolePayload[];
-  warn: ConsolePayload[];
-  log: ConsolePayload[];
-}
 
 export interface StateStore {
   error: ErrorPayload[];

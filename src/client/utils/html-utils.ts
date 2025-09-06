@@ -1,8 +1,4 @@
-import type {
-  ChannelMessage,
-  ConsolePayload,
-  ErrorPayload,
-} from "@/client/types";
+import type { ConsolePayload, ErrorPayload } from "@/client/types";
 
 /** 視覺層對應：level -> color class */
 export const LEVEL_COLOR_MAP: Record<string, string> = {
@@ -11,12 +7,6 @@ export const LEVEL_COLOR_MAP: Record<string, string> = {
   info: "text-green-600",
   error: "text-red-600",
 };
-
-interface UnifiedMessage {
-  message: string;
-  type: string;
-  color: string;
-}
 
 /**
  * 安全地轉義 HTML 字符
@@ -41,12 +31,12 @@ export function createMessageHtml({
   colorClass,
 }: {
   message: ConsolePayload | ErrorPayload;
-  colorClass: string;
+  colorClass: Record<string, string>;
 }): string {
   if ("level" in message) {
     return `
       <div class="console-message border-b border-gray-200 p-2 hover:bg-gray-50">
-        <span class="text-xs font-bold ${colorClass}">[${message.level}]</span>
+        <span class="text-xs font-bold ${colorClass[message.level]}">[${message.level}]</span>
         <span class="text-xs text-gray-400 ml-2">[${new Date().toLocaleTimeString()}]</span>
         <pre class="text-sm font-mono mt-1 whitespace-pre-wrap">${escapeHtml(message.message)}</pre>
       </div>
@@ -54,7 +44,7 @@ export function createMessageHtml({
   }
   return `
     <div class="console-message border-b border-gray-200 p-2 hover:bg-gray-50">
-      <span class="text-xs font-bold ${colorClass}">[${message.name}]</span>
+      <span class="text-xs font-bold  ${colorClass["error"]}">[${message.name}]</span>
       <span class="text-xs text-gray-400 ml-2">[${new Date().toLocaleTimeString()}]</span>
       <pre class="text-sm font-mono mt-1 whitespace-pre-wrap">${escapeHtml(message.message)}</pre>
     </div>
@@ -72,14 +62,14 @@ export function createMessageListHtml({
   messages,
   colorClass,
 }: {
-  messages: ChannelMessage | (ConsolePayload | ErrorPayload)[];
-  colorClass: string;
+  messages: (ConsolePayload | ErrorPayload)[];
+  colorClass: Record<string, string>;
 }): string {
   if (messages.length === 0) {
     return `<div class="text-gray-500 p-4">No messages</div>`;
   }
   return messages
-    .map((msg) => createMessageHtml({ message: msg, colorClass }))
+    .map((msg) => createMessageHtml({ message: msg, colorClass: colorClass }))
     .join("");
 }
 
@@ -105,6 +95,6 @@ export function renderAllMessages({
   }
 
   return `<div class="${containerClass}">
-    ${createMessageListHtml({ messages: allMessages })}
+    ${createMessageListHtml({ messages: allMessages, colorClass: LEVEL_COLOR_MAP })} })}
   </div>`;
 }

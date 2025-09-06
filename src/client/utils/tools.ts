@@ -51,10 +51,14 @@ export function testConsoleMonitor() {
   console.log("開始測試 Console Monitor...");
 
   setTimeout(() => {
-    console.log("這是一個 log 消息");
+    console.log("🧪 測試開始 - 這應該會出現在你的控制台");
     console.info("這是一個 info 消息");
-    console.warn("這是一個 warning 消息");
-    console.error("這是一個 error 消息");
+    console.warn("⚠️  警告測試");
+    console.error("❌ 錯誤測試");
+    // setTimeout(() => {
+    //   console.log("🕐 延遲測試訊息");
+    // }, 2000);
+    console.log("📦 物件測試", { user: "test", timestamp: Date.now() });
 
     // 測試語法錯誤（這會被 console.error 捕獲）
     try {

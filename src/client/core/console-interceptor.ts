@@ -22,7 +22,6 @@ const createConsoleInterceptor = ({
   callback: (data: ConsolePayload) => void;
 }) => {
   const { log, warn, info } = console;
-
   const start = () => {
     console.log = (...args: unknown[]) => {
       const payload: ConsolePayload = {
@@ -38,7 +37,8 @@ const createConsoleInterceptor = ({
       };
       callback(payload);
       // 同理apply(console, args)但是更簡潔更現代
-      console[payload.level](...args);
+      // console[payload.level](...args);
+      log.apply(console, args);
     };
     console.warn = (...args: unknown[]) => {
       const payload: ConsolePayload = {
@@ -52,12 +52,15 @@ const createConsoleInterceptor = ({
           origin: location.origin, //域名
         },
       };
-      console[payload.level](...args);
+      callback(payload);
+
+      // console[payload.level](...args);
+      warn.apply(console, args);
     };
 
     console.info = (...args: unknown[]) => {
       const payload: ConsolePayload = {
-        level: "warn",
+        level: "info",
         args,
         message: args.map(safeStringify).join(" "),
         timestamp: addTimestamp(),
@@ -67,7 +70,9 @@ const createConsoleInterceptor = ({
           origin: location.origin, //域名
         },
       };
-      console[payload.level](...args);
+      // console[payload.level](...args);
+      callback(payload);
+      info.apply(console, args);
     };
   };
 

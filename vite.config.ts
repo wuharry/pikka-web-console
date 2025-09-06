@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import react from "@vitejs/plugin-react";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -66,7 +67,13 @@ export default defineConfig(({ mode, command }) => {
   // 開發/一般打包：vite dev / vite build（App 模式）
   // ─────────────────────────────────────────────
   return {
-    plugins: [tailwindcss()],
+    plugins: [
+      tailwindcss(),
+      react({
+        // 啟用React DevTools的組件名稱顯示
+        jsxImportSource: "@emotion/react", // 如果使用emotion
+      }),
+    ],
     server: {
       port: 7770,
       strictPort: true,

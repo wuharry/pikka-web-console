@@ -1,4 +1,10 @@
-import type { ErrorPayload, ConsolePayload, StateStore } from "../types";
+// src/client/components/console-renderer.ts
+import type {
+  ErrorPayload,
+  ConsolePayload,
+  ChannelMessage,
+  StateStore,
+} from "../types";
 import {
   createMessageListHtml,
   renderAllMessages,
@@ -18,19 +24,25 @@ const TAB_ACTIVE_CLASSES = {
 const TAB_CONTENT_MAP = {
   log: (message: ConsolePayload[]) =>
     buildContainer(
-      createMessageListHtml({ messages: message, colorClass: "text-blue-600" }),
+      createMessageListHtml({
+        messages: message,
+        colorClass: { class: "!text-blue-300" },
+      }),
       CONTAINER_CLASS
     ),
   error: (message: ErrorPayload[]) =>
     buildContainer(
-      createMessageListHtml({ messages: message, colorClass: "text-red-600" }),
+      createMessageListHtml({
+        messages: message,
+        colorClass: { class: "!text-red-400" },
+      }),
       CONTAINER_CLASS
     ),
   warn: (message: ConsolePayload[]) =>
     buildContainer(
       createMessageListHtml({
         messages: message,
-        colorClass: "text-yellow-600",
+        colorClass: { class: "!text-yellow-300" },
       }),
       CONTAINER_CLASS
     ),
@@ -38,7 +50,7 @@ const TAB_CONTENT_MAP = {
     buildContainer(
       createMessageListHtml({
         messages: message,
-        colorClass: "text-green-600",
+        colorClass: { class: "!text-green-300" },
       }),
       CONTAINER_CLASS
     ),
@@ -67,10 +79,7 @@ const getTabContent = ({
   consoleData,
 }: {
   tabType: TabKey;
-  consoleData:
-    | ConsolePayload[]
-    | ErrorPayload[]
-    | (ConsolePayload | ErrorPayload)[];
+  consoleData: ChannelMessage | (ConsolePayload | ErrorPayload)[];
 }): string => {
   if (tabType === "all") {
     return TAB_CONTENT_MAP.all(consoleData);
@@ -86,33 +95,67 @@ const switchContent = ({
   consoleData,
 }: {
   tabType: TabKey;
-  consoleData:
-    | ConsolePayload[]
-    | ErrorPayload[]
-    | (ConsolePayload | ErrorPayload)[];
+  consoleData: ChannelMessage | (ConsolePayload | ErrorPayload)[];
 }) => {
   const content = document.querySelector("#tab-content");
   if (content) {
-    content.innerHTML = getTabContent({
-      tabType: tabType,
-      consoleData: consoleData,
-    });
+    content.innerHTML = getTabContent({ tabType, consoleData });
+  }
+};
+
+// 🚀 追加：初始化預設顯示內容
+const initializeDefaultTab = (data: StateStore) => {
+  const AllData = [...data.error, ...data.info, ...data.warn, ...data.log];
+
+  // 預設顯示 "all" tab 的內容
+  switchContent({
+    tabType: "all",
+    consoleData: AllData,
+  });
+
+  // 預設啟用 "all" tab 的樣式
+  const tabList = document.querySelector<HTMLUListElement>("#tab-links");
+  if (tabList) {
+    const allTab = tabList.querySelector<HTMLButtonElement>('[data-tab="all"]');
+    if (allTab) {
+      const tabs =
+        tabList.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
+      const ALL_BG_COLORS = Object.values(TAB_ACTIVE_CLASSES);
+      clearAllTabStats(tabs, ALL_BG_COLORS);
+      activateTab(allTab);
+    }
   }
 };
 
 export function renderTabs(data: StateStore) {
+  // console.log("renderTabs 被調用，資料:", data); // 🐛 調試用
+
   const tabList = document.querySelector<HTMLUListElement>("#tab-links");
-  if (!tabList) return;
+  if (!tabList) {
+    // console.error("找不到 #tab-links 元素");
+    return;
+  }
 
   const tabs =
     tabList.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
   const ALL_BG_COLORS = Object.values(TAB_ACTIVE_CLASSES);
 
+  // 🚀 初始化預設顯示內容
+  initializeDefaultTab(data);
+
+  // 綁定事件監聽器
   tabs.forEach((button) => {
-    button.addEventListener("click", (e) => {
+    // 🚀 移除舊的事件監聽器，避免重複綁定
+    const newButton = button.cloneNode(true) as HTMLButtonElement;
+    button.parentNode?.replaceChild(newButton, button);
+
+    newButton.addEventListener("click", (e) => {
       const target = e.currentTarget as HTMLButtonElement;
 
-      clearAllTabStats(tabs, ALL_BG_COLORS);
+      clearAllTabStats(
+        tabList.querySelectorAll<HTMLButtonElement>('button[role="tab"]'),
+        ALL_BG_COLORS
+      );
       activateTab(target);
 
       const tabType = (target.dataset.tab as TabKey) || "all";

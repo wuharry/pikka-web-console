@@ -12,7 +12,6 @@ app.get("/", (c) => c.text("Hono!"));
 app.get("/api/log", (c) => c.json({ message: "Hello from Hono!" }));
 
 const port = 8992;
-console.log(`Server is running on port ${port}`);
 
 serve({
   fetch: app.fetch,

@@ -10,8 +10,9 @@ import {
   renderAllMessages,
   buildContainer,
 } from "@/client/utils/html-utils";
+import { LEVEL_COLOR_MAP } from "../constants";
 
-const CONTAINER_CLASS = "console-content max-h-96 overflow-y-auto";
+const CONTAINER_CLASS = "console-content overflow-y-auto";
 
 const TAB_ACTIVE_CLASSES = {
   log: "bg-blue-600",
@@ -26,7 +27,7 @@ const TAB_CONTENT_MAP = {
     buildContainer(
       createMessageListHtml({
         messages: message,
-        colorClass: { class: "!text-blue-300" },
+        colorClass: LEVEL_COLOR_MAP,
       }),
       CONTAINER_CLASS
     ),
@@ -34,7 +35,7 @@ const TAB_CONTENT_MAP = {
     buildContainer(
       createMessageListHtml({
         messages: message,
-        colorClass: { class: "!text-red-400" },
+        colorClass: LEVEL_COLOR_MAP,
       }),
       CONTAINER_CLASS
     ),
@@ -42,7 +43,7 @@ const TAB_CONTENT_MAP = {
     buildContainer(
       createMessageListHtml({
         messages: message,
-        colorClass: { class: "!text-yellow-300" },
+        colorClass: LEVEL_COLOR_MAP,
       }),
       CONTAINER_CLASS
     ),
@@ -50,7 +51,7 @@ const TAB_CONTENT_MAP = {
     buildContainer(
       createMessageListHtml({
         messages: message,
-        colorClass: { class: "!text-green-300" },
+        colorClass: LEVEL_COLOR_MAP,
       }),
       CONTAINER_CLASS
     ),
@@ -87,7 +88,13 @@ const getTabContent = ({
   if (tabType === "error") {
     return TAB_CONTENT_MAP.error(consoleData as ErrorPayload[]);
   }
-  return TAB_CONTENT_MAP[tabType](consoleData as ConsolePayload[]);
+  try {
+    return TAB_CONTENT_MAP[tabType as "log" | "warn" | "info"](
+      consoleData as ConsolePayload[]
+    );
+  } catch (error) {
+    return "";
+  }
 };
 
 const switchContent = ({
@@ -99,54 +106,34 @@ const switchContent = ({
 }) => {
   const content = document.querySelector("#tab-content");
   if (content) {
-    content.innerHTML = getTabContent({ tabType, consoleData });
-  }
-};
-
-// 🚀 追加：初始化預設顯示內容
-const initializeDefaultTab = (data: StateStore) => {
-  const AllData = [...data.error, ...data.info, ...data.warn, ...data.log];
-
-  // 預設顯示 "all" tab 的內容
-  switchContent({
-    tabType: "all",
-    consoleData: AllData,
-  });
-
-  // 預設啟用 "all" tab 的樣式
-  const tabList = document.querySelector<HTMLUListElement>("#tab-links");
-  if (tabList) {
-    const allTab = tabList.querySelector<HTMLButtonElement>('[data-tab="all"]');
-    if (allTab) {
-      const tabs =
-        tabList.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
-      const ALL_BG_COLORS = Object.values(TAB_ACTIVE_CLASSES);
-      clearAllTabStats(tabs, ALL_BG_COLORS);
-      activateTab(allTab);
-    }
+    content.innerHTML = getTabContent({
+      tabType: tabType,
+      consoleData: consoleData,
+    });
   }
 };
 
 export function renderTabs(data: StateStore) {
-  // console.log("renderTabs 被調用，資料:", data); // 🐛 調試用
-
   const tabList = document.querySelector<HTMLUListElement>("#tab-links");
   if (!tabList) {
-    // console.error("找不到 #tab-links 元素");
     return;
   }
 
   const tabs =
     tabList.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
   const ALL_BG_COLORS = Object.values(TAB_ACTIVE_CLASSES);
-
-  // 🚀 初始化預設顯示內容
-  initializeDefaultTab(data);
+  const tabTypes: TabKey[] = ["all", "log", "error", "warn", "info"];
 
   // 綁定事件監聽器
   tabs.forEach((button) => {
-    // 🚀 移除舊的事件監聽器，避免重複綁定
+    //深層複製按鈕
     const newButton = button.cloneNode(true) as HTMLButtonElement;
+    if (newButton.dataset.tab) {
+      const buttonText = newButton.textContent?.toLowerCase().trim();
+      newButton.dataset.tab = buttonText;
+    } else {
+      newButton.dataset.tab = "all";
+    }
     button.parentNode?.replaceChild(newButton, button);
 
     newButton.addEventListener("click", (e) => {
@@ -157,11 +144,15 @@ export function renderTabs(data: StateStore) {
         ALL_BG_COLORS
       );
       activateTab(target);
+      const tabType = target.dataset.tab as TabKey;
+      if (!tabType) {
+        return;
+      }
 
-      const tabType = (target.dataset.tab as TabKey) || "all";
       const AllData = [...data.error, ...data.info, ...data.warn, ...data.log];
+
       switchContent({
-        tabType,
+        tabType: tabType,
         consoleData:
           tabType === "all" ? AllData : data[tabType as keyof StateStore],
       });

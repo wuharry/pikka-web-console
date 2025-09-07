@@ -1,12 +1,6 @@
 import type { ConsolePayload, ErrorPayload } from "@/client/types";
-
+import { LEVEL_COLOR_MAP } from "../constants";
 /** 視覺層對應：level -> color class */
-export const LEVEL_COLOR_MAP: Record<string, string> = {
-  log: "text-blue-600",
-  warn: "text-yellow-600",
-  info: "text-green-600",
-  error: "text-red-600",
-};
 
 /**
  * 安全地轉義 HTML 字符
@@ -95,6 +89,8 @@ export function renderAllMessages({
   }
 
   return `<div class="${containerClass}">
+  <div class="console-message border-b border-gray-200 p-2 hover:bg-gray-50">
+  </
     ${createMessageListHtml({ messages: allMessages, colorClass: LEVEL_COLOR_MAP })} })}
   </div>`;
 }

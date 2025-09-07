@@ -1,114 +1,160 @@
-// #!/usr/bin/env node
-
-// /**
-//  * Pikka Web Console CLI
-//  * 用於啟動 Web Console 服務器
-//  */
-
-// import { fileURLToPath } from 'url';
-// import { dirname, join } from 'path';
-// import { spawn } from 'child_process';
-
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = dirname(__filename);
-
-// console.log('🚀 Starting Pikka Web Console...');
-
-// // 啟動後端服務器
-// const serverPath = join(__dirname, '../src/server/api/main.ts');
-// const child = spawn('tsx', [serverPath], {
-//   stdio: 'inherit',
-//   env: process.env,
-// });
-
-// child.on('close', (code) => {
-//   console.log(`\n📊 Pikka Web Console exited with code ${code}`);
-//   process.exit(code);
-// });
-
-// child.on('error', (err) => {
-//   console.error('❌ Failed to start Pikka Web Console:', err);
-//   process.exit(1);
-// });
-
-// // 處理 Ctrl+C
-// process.on('SIGINT', () => {
-//   console.log('\n⏹️  Stopping Pikka Web Console...');
-//   child.kill('SIGINT');
-// });
-
-// process.on('SIGTERM', () => {
-//   console.log('\n⏹️  Stopping Pikka Web Console...');
-//   child.kill('SIGTERM');
-// });
-//  bin/cli.js
-// 腳本,Init用
+#!/usr/bin/env node
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
-import { spawnSync } from "child_process";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import path from "path";
+import { createServer } from "http";
+import { readFile } from "fs/promises";
 
-// args：取使用者輸入的子命令，例如 npx your-console-monitor init 時 args[0] === "init"。
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const args = process.argv.slice(2);
 
-// 代表使用者要「自動配置」。
 if (args[0] === "init") {
-  // cwd：目前專案路徑。
   const cwd = process.cwd();
-
-  // pkgPath：專案的 package.json 絕對路徑。
   const pkgPath = path.join(cwd, "package.json");
 
-  // existsSync 檢查：確保你是在專案根目錄執行（否則不知道要改哪個 package.json）。
   if (!existsSync(pkgPath)) {
-    console.error("找不到 package.json，請在專案根目錄執行！");
+    console.error("❌ 找不到 package.json，請在專案根目錄執行！");
     process.exit(1);
   }
-  // readFileSync + JSON.parse：把 package.json 讀進來成 JS 物件好修改。
+
   const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-
-  // 1. 新增 script 為空或是原值
   pkg.scripts ||= {};
-  pkg.scripts["dev:peekConsole"] = "your-console-monitor dev";
+  pkg.scripts["dev:console"] = "pikka-console dev";
+  pkg.scripts["console:monitor"] = "pikka-console dev";
 
-  // 2. 寫回 package.json＋排版＋成功訊息
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
-  console.log("✔ 已新增 script: dev:peekConsole");
+  console.log("✅ 已新增 scripts:");
+  console.log("   - dev:console");
+  console.log("   - console:monitor");
 
-  // 3. 複製/生成配置檔（選擇性）--> 複製 console-monitor.config.js
-  // 這個檔案應該之後可以加,內容可能會像是一些設定檔
-  // EX:export default {
-  //   port: 7770,           // 監聽的 port
-  //   ui: true,             // 是否啟動內建的 web UI
-  //   autoStartDev: "pnpm dev", // 是否順便幫使用者啟動他專案的 dev server
-  //   filters: ["warn", "error"], // 要監看的 log 類型
-  // };
+  // 創建配置檔案（可選）
+  const configPath = path.join(cwd, "pikka-console.config.js");
+  if (!existsSync(configPath)) {
+    const configContent = `export default {
+  ui: {
+    port: 7770,
+    open: true
+  },
+  capture: {
+    levels: ['log', 'warn', 'error', 'info'],
+    exclude: []
+  }
+};`;
+    writeFileSync(configPath, configContent);
+    console.log("✅ 已建立 pikka-console.config.js");
+  }
 
-  //   const configPath = path.join(cwd, "console-monitor.config.js");
-  //   if (!existsSync(configPath)) {
-  //     writeFileSync(configPath, `export default { port: 7770, ui: true };\n`);
-  //     console.log("✔ 已建立 console-monitor.config.js");
-  //   }
-
-  // 4. 安裝依賴（確保自己被寫進 devDependencies）
-  // 偵測套件管理器：透過 npm_config_user_agent 大致判斷使用者是 pnpm/yarn/npm。
-  const pm = process.env.npm_config_user_agent?.includes("pnpm")
-    ? "pnpm"
-    : process.env.npm_config_user_agent?.includes("yarn")
-      ? "yarn"
-      : "npm";
-
-  console.log(`▶ 安裝中（偵測到 ${pm}）...`);
-  spawnSync(pm, ["install", "-D", "your-console-monitor"], {
-    //   stdio: "inherit"：把子進程的輸出直接顯示在使用者的終端上，讓他看到安裝進度。
-    stdio: "inherit",
-  });
+  console.log("\n🎉 初始化完成！");
+  console.log("執行以下指令啟動：");
+  console.log("  npm run dev:console");
+  console.log("  # 或");
+  console.log("  npx pikka-console dev");
 } else if (args[0] === "dev") {
-  // 啟動你的監聽 server
-  // 目前後端沒有寫
-  import("./server/api/main.js");
+  console.log("🚀 Starting Pikka Web Console...");
+
+  const port = args.includes("--port")
+    ? parseInt(args[args.indexOf("--port") + 1]) || 7770
+    : 7770;
+
+  startStaticServer(port);
+} else if (
+  args[0] === "version" ||
+  args[0] === "-v" ||
+  args[0] === "--version"
+) {
+  const pkgPath = join(__dirname, "../package.json");
+  if (existsSync(pkgPath)) {
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+    console.log(`pikka-web-console v${pkg.version}`);
+  }
 } else {
-  console.log("用法：");
-  console.log("  npx your-console-monitor init   # 初始化配置");
-  console.log("  npx your-console-monitor dev    # 啟動監控伺服器");
+  console.log("🔍 Pikka Web Console CLI");
+  console.log("\n用法：");
+  console.log("  pikka-console init              # 初始化配置");
+  console.log("  pikka-console dev               # 啟動 Web UI");
+  console.log("  pikka-console dev --port 8080   # 指定端口");
+  console.log("  pikka-console version           # 顯示版本");
+  console.log("\n範例：");
+  console.log("  npx pikka-console init");
+  console.log("  npm run dev:console");
+}
+
+async function startStaticServer(port) {
+  const uiPath = join(__dirname, "../dist/ui");
+
+  if (!existsSync(uiPath)) {
+    console.error("❌ UI files not found:", uiPath);
+    console.log(
+      '💡 Please run "npm run build" in your pikka-web-console package first.'
+    );
+    process.exit(1);
+  }
+
+  const server = createServer(async (req, res) => {
+    let filePath = join(uiPath, req.url === "/" ? "index.html" : req.url);
+
+    // 處理 SPA 路由
+    if (!existsSync(filePath) && !req.url.startsWith("/assets/")) {
+      filePath = join(uiPath, "index.html");
+    }
+
+    try {
+      const content = await readFile(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+
+      const contentTypes = {
+        ".html": "text/html",
+        ".js": "application/javascript",
+        ".css": "text/css",
+        ".json": "application/json",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+      };
+
+      res.writeHead(200, {
+        "Content-Type": contentTypes[ext] || "text/plain",
+        "Access-Control-Allow-Origin": "*", // 允許跨域，方便開發
+      });
+      res.end(content);
+    } catch (error) {
+      res.writeHead(404);
+      res.end("Not Found");
+    }
+  });
+
+  server.listen(port, async () => {
+    console.log(`📊 Pikka Web Console running at:`);
+    console.log(`   Local:   http://localhost:${port}`);
+    console.log(`   Network: http://0.0.0.0:${port}`);
+    console.log("\n💡 Make sure your app is running with Pikka SDK enabled!");
+
+    // 自動開啟瀏覽器
+    try {
+      const { default: open } = await import("open");
+      await open(`http://localhost:${port}`);
+    } catch (e) {
+      // 如果 open 套件不存在，就不自動開啟
+    }
+  });
+
+  // 優雅關閉
+  process.on("SIGINT", () => {
+    console.log("\n⏹️  Stopping Pikka Web Console...");
+    server.close(() => {
+      process.exit(0);
+    });
+  });
+
+  process.on("SIGTERM", () => {
+    console.log("\n⏹️  Stopping Pikka Web Console...");
+    server.close(() => {
+      process.exit(0);
+    });
+  });
 }

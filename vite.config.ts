@@ -19,6 +19,45 @@ export default defineConfig(({ mode, command }) => {
   };
 
   // ─────────────────────────────────────────────
+  // Server 打包：vite build --mode server
+  // ─────────────────────────────────────────────
+  if (mode === "server") {
+    return {
+      plugins: [],
+      resolve: {
+        alias: aliases,
+      },
+      build: {
+        outDir: "dist/server",
+        ssr: true, // 服務器端渲染模式
+        lib: {
+          entry: "src/server/api/main.ts",
+          name: "PikkaServer",
+          fileName: () => "main.js",
+          formats: ["es"],
+        },
+        rollupOptions: {
+          external: [
+            // Node.js 內建模組
+            "fs",
+            "path",
+            "url",
+            "child_process",
+            // 保留的依賴（需要在運行時安裝）
+            "@hono/node-server",
+            "hono",
+          ],
+          output: {
+            format: "es",
+          },
+        },
+        minify: false, // 保持可讀性，方便除錯
+        sourcemap: true,
+      },
+    };
+  }
+
+  // ─────────────────────────────────────────────
   // Library / SDK 打包：vite build --mode lib
   // ─────────────────────────────────────────────
   if (mode === "lib") {
@@ -36,7 +75,6 @@ export default defineConfig(({ mode, command }) => {
           fileName: (fmt) => `inpage-console.${fmt}.js`,
           formats: ["es", "umd", "iife"],
         },
-        // 生成類型檔案
         emitTypes: true,
         rollupOptions: {
           // 🔧 庫模式通常不需要外部依賴（除非你要用戶自己安裝）
@@ -58,7 +96,7 @@ export default defineConfig(({ mode, command }) => {
         },
         cssCodeSplit: false,
         sourcemap: true,
-        emptyOutDir: true,
+        emptyOutDir: false, // 不清空，避免覆蓋 server 建構
       },
     };
   }

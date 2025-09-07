@@ -122,7 +122,6 @@ export function renderTabs(data: StateStore) {
   const tabs =
     tabList.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
   const ALL_BG_COLORS = Object.values(TAB_ACTIVE_CLASSES);
-  const tabTypes: TabKey[] = ["all", "log", "error", "warn", "info"];
 
   // 綁定事件監聽器
   tabs.forEach((button) => {

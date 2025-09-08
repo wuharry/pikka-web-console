@@ -9,12 +9,4 @@ import "./client/app/main";
  * @example
  * ```typescript
  * import PikkaWebConsole from 'pikka-web-console';
- *
- * // 自動啟動控制台（推薦用於開發環境）
- * PikkaWebConsole.init();
- *
- * // 或者手動控制
- * const console = PikkaWebConsole.create();
- * console.start();
- * ```
  */

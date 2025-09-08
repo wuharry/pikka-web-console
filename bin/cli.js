@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, existsSync } from "fs";
+// pikka-console CLI (ESM) - fixed & integrated
+
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
 import { dirname, join } from "path";
 import path from "path";
@@ -52,8 +54,24 @@ function installCmd(pm) {
       return "npm i -D";
   }
 }
+function ensureDir(p) {
+  if (!existsSync(p)) mkdirSync(p, { recursive: true });
+}
 
-/* ------------------------------ dev 啟動 ------------------------------ */
+// 根據你的專案尋找 console 入口：先抓 <repo>/src/main.ts，再抓安裝版本
+function resolveConsoleEntry(cwd = process.cwd()) {
+  const candidates = [
+    path.join(cwd, "src/main.ts"),
+    path.join(cwd, "src/mian.ts"), // 你貼的路徑有打成 mian.ts，保險也試著找一下
+    path.join(cwd, "node_modules/pikka-web-console/dist/main.js"),
+  ];
+  for (const fp of candidates) {
+    if (existsSync(fp)) return fp;
+  }
+  return null;
+}
+
+// ------------------------------ dev 啟動 -------------------------------
 async function startViteServer(port = 3749) {
   const configPath = join(process.cwd(), "pikka-console.config.js");
 
@@ -67,17 +85,14 @@ async function startViteServer(port = 3749) {
     console.log("📋 載入 Vite 配置...");
     const { createServer } = await import("vite");
 
-    // 以動態 import 載入（ESM/CJS 都可，CJS 會在 .default）
-    const configUrl = pathToFileURL(configPath).href;
-    const mod = await import(configUrl);
+    // ESM 動態 import（CJS 檔案也能以 default 形式載入）
+    const mod = await import(pathToFileURL(configPath).href);
     const loaded = (mod?.default ?? mod) || {};
-    // 允許 config 為 object 或 function
     const baseConfig =
       typeof loaded === "function"
-        ? loaded({ command: "serve", mode: "development" })
+        ? await loaded({ command: "serve", mode: "development" })
         : loaded;
 
-    // 動態覆蓋 server 設定
     const viteConfig = {
       ...baseConfig,
       server: {
@@ -109,20 +124,18 @@ async function startViteServer(port = 3749) {
   }
 }
 
-/* ------------------------ 寫入 package.json 腳本 ------------------------ */
+// ------------------------- package.json scripts --------------------------
 function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
-  // 找 package.json
   const pkgPath = path.join(cwd, "package.json");
   if (!existsSync(pkgPath)) {
     console.error("❌ 找不到 package.json，請在專案根目錄執行！");
     process.exit(1);
   }
 
-  // 讀取並解析
   const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-  // 確保 scripts 存在
   pkg.scripts ||= {};
 
+  // 統一以 3749 埠為主
   pkg.scripts["dev:console"] = "pikka-console dev --port 3749";
   pkg.scripts["console:monitor"] = "pikka-console dev --port 3750";
 
@@ -132,8 +145,8 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
       `concurrently "${pm} run dev" "${pm} run dev:console"`;
     console.log(`💡 建議安裝 concurrently: ${installCmd(pm)} concurrently`);
   }
-  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
   console.log("✅ 已新增 scripts:");
   console.log("   - dev:console      # 啟動 Pikka Console");
   console.log("   - console:monitor  # 備用監控指令");
@@ -147,185 +160,88 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
  * 3) 產生 pikka-console.config.js（CJS 格式，import 也可載）
  */
 async function createPikkaConsoleConfig(cwd = process.cwd()) {
-  const configPath = path.join(cwd, "pikka-console.config.js");
-  if (existsSync(configPath)) {
+  const outConfigPath = path.join(cwd, "pikka-console.config.js");
+  if (existsSync(outConfigPath)) {
     console.log("ℹ️ 已存在 pikka-console.config.js，略過建立");
-    return configPath;
+    return outConfigPath;
   }
 
-  console.log("🔍 檢查專案配置...");
+  console.log("🔍 準備 Pikka Console 獨立 root...");
+  const consoleRoot = path.join(cwd, ".pikka", "console");
+  ensureDir(consoleRoot);
 
-  // 檢查專案是否為 ESM
-  const pkgPath = path.join(cwd, "package.json");
-  let isESM = false;
-
-  if (existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-      isESM = pkg.type === "module";
-      console.log(`📦 專案類型: ${isESM ? "ES Module" : "CommonJS"}`);
-    } catch (e) {
-      console.log("⚠️ 讀取 package.json 失敗，使用預設設定");
-    }
+  // 解析你的 Console 入口
+  const entry = resolveConsoleEntry(cwd);
+  if (!entry) {
+    console.error("❌ 找不到 Console 入口檔。請確認下列其一存在：");
+    console.error("   - <專案>/src/main.ts（或你實際的入口路徑）");
+    console.error("   - <專案>/node_modules/pikka-web-console/dist/main.js");
+    process.exit(1);
   }
 
-  // 檢查 Pikka Console 的入口文件
-  const pikkaMainFile = path.join(cwd, "src/main.ts");
-  const hasMainFile = existsSync(pikkaMainFile);
+  // 生成 .pikka/console/index.html，包含 #pikka-console-web 並 import 入口
+  const entryUrlForVite = entry.startsWith(cwd)
+    ? "/" + path.posix.join(...path.relative(cwd, entry).split(path.sep))
+    : pathToFileURL(entry).href;
 
-  if (!hasMainFile) {
-    console.log("⚠️ 找不到 src/main.ts，請確保 Pikka Console 入口文件存在");
-  }
+  const indexHtml = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"/>
+    <title>Pikka Console</title>
+  </head>
+  <body>
+    <div id="pikka-console-web"></div>
+    <script type="module">
+      import "${entryUrlForVite}";
+    </script>
+  </body>
+</html>`;
+  const indexPath = path.join(consoleRoot, "index.html");
+  writeFileSync(indexPath, indexHtml);
 
-  // 生成 Pikka Console 專用配置（不載入原專案配置）
-  const fileContent = isESM
-    ? `// Auto-generated by pikka-console (ESM)
-// 🎯 Pikka Console Vite 配置檔案
-import { defineConfig } from 'vite';
-import { resolve } from 'path';
-
-export default defineConfig(async ({ command, mode }) => {
-  console.log('🎯 啟動 Pikka Console 專用配置');
-  
-  return {
-    // Pikka Console 專用根目錄和入口
-    root: '${cwd}',
-    
-    // 指定 Pikka Console 的入口文件
-    build: {
-      rollupOptions: {
-        input: {
-          main: resolve(__dirname, 'src/main.ts')
-        }
-      },
-      outDir: 'pikka-console-dist'
-    },
-    
-    // 解析配置
-    resolve: {
-      alias: {
-        '@': resolve(__dirname, 'src'),
-        '@assets': resolve(__dirname, 'src/assets')
-      }
-    },
-    
-    // 開發伺服器配置
-    server: {
-      port: 3749,
-      host: true,
-      cors: true,
-      open: false
-    },
-    
-    // 模式
-    mode: 'development',
-    
-    // 環境變數
-    define: {
-      __PIKKA_CONSOLE__: true,
-      __PIKKA_DEV__: true,
-      'import.meta.env.DEV': true
-    },
-    
-    // 如果需要處理 HTML 模板
-    assetsInclude: ['**/*.html'],
-    
-    // 插件配置
-    plugins: [
-      // 根據需要添加插件
-      // 例如：處理 TypeScript
-    ],
-    
-    // 確保正確處理模塊
-    esbuild: {
-      target: 'esnext'
-    }
-  };
-});
-
-// 💡 這是 Pikka Console 的專用配置，不會載入原專案配置
-`
-    : `// Auto-generated by pikka-console (CJS)  
-// 🎯 Pikka Console Vite 配置檔案
+  // 產生最小 Vite 設定（獨立於主專案；允許讀取入口所在目錄）
+  const allowDirs = JSON.stringify([cwd, path.dirname(entry)]);
+  const fileContent = `// Auto-generated by pikka-console (isolated root)
+// 🎯 Pikka Console Vite 配置檔案（獨立於主專案）
 const { defineConfig } = require('vite');
-const { resolve } = require('path');
 
-module.exports = defineConfig(async ({ command, mode }) => {
-  console.log('🎯 啟動 Pikka Console 專用配置');
-  
-  return {
-    // Pikka Console 專用根目錄和入口
-    root: '${cwd}',
-    
-    // 指定 Pikka Console 的入口文件  
-    build: {
-      rollupOptions: {
-        input: {
-          main: resolve(__dirname, 'src/main.ts')
-        }
-      },
-      outDir: 'pikka-console-dist'
-    },
-    
-    // 解析配置
-    resolve: {
-      alias: {
-        '@': resolve(__dirname, 'src'),
-        '@assets': resolve(__dirname, 'src/assets')
-      }
-    },
-    
-    // 開發伺服器配置
-    server: {
-      port: 3749,
-      host: true,
-      cors: true,
-      open: false
-    },
-    
-    // 模式
-    mode: 'development',
-    
-    // 環境變數
-    define: {
-      __PIKKA_CONSOLE__: true,
-      __PIKKA_DEV__: true,
-      'import.meta.env.DEV': true
-    },
-    
-    // 如果需要處理 HTML 模板
-    assetsInclude: ['**/*.html'],
-    
-    // 插件配置
-    plugins: [
-      // 根據需要添加插件
-    ],
-    
-    // 確保正確處理模塊
-    esbuild: {
-      target: 'esnext'
-    }
-  };
-});
-
-// 💡 這是 Pikka Console 的專用配置，不會載入原專案配置
+module.exports = defineConfig(({ command, mode }) => ({
+  root: ${JSON.stringify(consoleRoot)},
+  mode: 'development',
+  publicDir: false,
+  server: {
+    port: 3749,
+    host: true,
+    cors: true,
+    open: false,
+    fs: { allow: ${allowDirs} },
+  },
+  build: {
+    outDir: 'pikka-console-dist',
+    emptyOutDir: true,
+  },
+  define: {
+    __PIKKA_CONSOLE__: true,
+    __PIKKA_DEV__: true,
+  },
+  // 如需 React/Vue 插件可自行加上
+  plugins: []
+}));
 `;
-
-  writeFileSync(configPath, fileContent);
+  writeFileSync(outConfigPath, fileContent);
 
   console.log("✅ 已建立 pikka-console.config.js");
-  console.log(`   配置檔案: ${configPath}`);
+  console.log(`   root: ${consoleRoot}`);
+  console.log(`   入口: ${entry}`);
   console.log("   預設 Port: 3749");
-  console.log(`   格式: ${isESM ? "ES Module" : "CommonJS"}`);
-  console.log("   🎯 專用於 Pikka Console，不載入原專案配置");
-  console.log(
-    `   入口文件: ${hasMainFile ? "✅ src/main.ts" : "⚠️ src/main.ts (未找到)"}`
-  );
-
-  return configPath;
+  return outConfigPath;
 }
 
-/* -------------------------------- dev 命令 -------------------------------- */
+// ----------------------------- commands -----------------------------------
 async function devCommand(args) {
   console.log("🚀 Starting Pikka Console...");
   const port = args.includes("--port")
@@ -362,12 +278,16 @@ function showVersion() {
 function showHelp() {
   console.log("🔍 Pikka Console CLI");
   console.log("\n用法：");
-  console.log("  pikka-console init              # 初始化配置");
-  console.log("  pikka-console dev               # 啟動開發服務器");
+  console.log(
+    "  pikka-console init              # 初始化配置（建立 .pikka/console + config）"
+  );
+  console.log(
+    "  pikka-console dev               # 啟動開發服務器（獨立 root）"
+  );
   console.log("  pikka-console dev --port 8080   # 指定端口");
   console.log("  pikka-console version           # 顯示版本");
   console.log("\n範例：");
   console.log("  npx pikka-console init");
-  console.log("  npm run dev:console");
-  console.log("  npm run dev:all  # 同時啟動原專案 + Console");
+  console.log("  pnpm run dev:console");
+  console.log("  pnpm run dev:all  # 同時啟動原專案 + Console");
 }

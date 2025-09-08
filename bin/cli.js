@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 // pikka-console CLI (ESM) - fixed & integrated
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+} from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
 import { dirname, join } from "path";
 import path from "path";
@@ -12,11 +18,8 @@ console.log("=".repeat(50));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
 // 命令行參數解析
-// process.argv[0] = Node.js 執行檔的路徑
-// process.argv[1] = 正在執行的 JavaScript 檔案路徑
-// process.argv[2] 開始 = 實際的命令行參數
-// npx pikka-console init--->抓init
 const args = process.argv.slice(2);
 
 // 主要邏輯分發
@@ -42,6 +45,7 @@ function detectPackageManager(cwd = process.cwd()) {
   if (existsSync(path.join(cwd, "package-lock.json"))) return "npm";
   return "npm";
 }
+
 function installCmd(pm) {
   switch (pm) {
     case "pnpm":
@@ -54,18 +58,31 @@ function installCmd(pm) {
       return "npm i -D";
   }
 }
+
 function ensureDir(p) {
   if (!existsSync(p)) mkdirSync(p, { recursive: true });
 }
 
-// 根據你的專案尋找 console 入口：先抓 <repo>/src/main.ts，再抓安裝版本
+// 檢查專案是否為 ES module
+function isESModuleProject(cwd = process.cwd()) {
+  const pkgPath = path.join(cwd, "package.json");
+  if (!existsSync(pkgPath)) return false;
+
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+    return pkg.type === "module";
+  } catch {
+    return false;
+  }
+}
+
+// 根據你的專案尋找 console 入口
 function resolveConsoleEntry(cwd = process.cwd()) {
   const candidates = [
     path.join(cwd, "src/main.ts"),
     path.join(cwd, "src/index.ts"),
     path.join(cwd, "src/main.js"),
     path.join(cwd, "index.html"), // 如果是通过 HTML 入口
-    // 根据你的实际项目结构添加更多候选路径
   ];
 
   for (const fp of candidates) {
@@ -78,8 +95,12 @@ function resolveConsoleEntry(cwd = process.cwd()) {
   // 列出实际存在的文件以帮助调试
   console.log("📁 当前目录结构:");
   if (existsSync(path.join(cwd, "src"))) {
-    const srcFiles = fs.readdirSync(path.join(cwd, "src"));
-    console.log(`   src/: ${srcFiles.join(", ")}`);
+    try {
+      const srcFiles = readdirSync(path.join(cwd, "src"));
+      console.log(`   src/: ${srcFiles.join(", ")}`);
+    } catch (err) {
+      console.log(`   src/: 無法讀取目錄`);
+    }
   }
 
   return null;
@@ -87,10 +108,15 @@ function resolveConsoleEntry(cwd = process.cwd()) {
 
 // ------------------------------ dev 啟動 -------------------------------
 async function startViteServer(port = 3749) {
-  const configPath = join(process.cwd(), "pikka-console.config.js");
+  const cwd = process.cwd();
+  const isESModule = isESModuleProject(cwd);
+  const configPath = join(
+    cwd,
+    isESModule ? "pikka-console.config.mjs" : "pikka-console.config.js"
+  );
 
   if (!existsSync(configPath)) {
-    console.error("❌ 找不到 pikka-console.config.js");
+    console.error(`❌ 找不到 ${path.basename(configPath)}`);
     console.log("💡 請先執行: npx pikka-console init");
     process.exit(1);
   }
@@ -99,7 +125,7 @@ async function startViteServer(port = 3749) {
     console.log("📋 載入 Vite 配置...");
     const { createServer } = await import("vite");
 
-    // ESM 動態 import（CJS 檔案也能以 default 形式載入）
+    // ESM 動態 import
     const mod = await import(pathToFileURL(configPath).href);
     const loaded = (mod?.default ?? mod) || {};
     const baseConfig =
@@ -133,7 +159,7 @@ async function startViteServer(port = 3749) {
     process.on("SIGTERM", shutdown);
   } catch (error) {
     console.error("❌ Vite 服務器啟動失敗:", error?.message || error);
-    console.log("💡 請檢查 pikka-console.config.js 是否合法");
+    console.log(`💡 請檢查 ${path.basename(configPath)} 是否合法`);
     process.exit(1);
   }
 }
@@ -167,16 +193,16 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
   console.log("   - dev:all          # 同時啟動原專案和 Console");
 }
 
-/* ------------------------ ESM 兼容版：產生 pikka-console.config.js ------------------------ */
-/**
- * 1) 嘗試以 Vite API 載入專案 vite.config（自動找最接近的檔案）
- * 2) 失敗則 fallback 到最小配置
- * 3) 產生 pikka-console.config.js（CJS 格式，import 也可載）
- */
+/* ------------------------ ESM 兼容版：產生 pikka-console.config ------------------------ */
 async function createPikkaConsoleConfig(cwd = process.cwd()) {
-  const outConfigPath = path.join(cwd, "pikka-console.config.js");
+  const isESModule = isESModuleProject(cwd);
+  const configFileName = isESModule
+    ? "pikka-console.config.mjs"
+    : "pikka-console.config.js";
+  const outConfigPath = path.join(cwd, configFileName);
+
   if (existsSync(outConfigPath)) {
-    console.log("ℹ️ 已存在 pikka-console.config.js，略過建立");
+    console.log(`ℹ️ 已存在 ${configFileName}，略過建立`);
     return outConfigPath;
   }
 
@@ -193,7 +219,7 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
     process.exit(1);
   }
 
-  // 生成 .pikka/console/index.html，包含 #pikka-console-web 並 import 入口
+  // 生成 .pikka/console/index.html
   const entryUrlForVite = entry.startsWith(cwd)
     ? "/" + path.posix.join(...path.relative(cwd, entry).split(path.sep))
     : pathToFileURL(entry).href;
@@ -217,10 +243,43 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
   const indexPath = path.join(consoleRoot, "index.html");
   writeFileSync(indexPath, indexHtml);
 
-  // 產生最小 Vite 設定（獨立於主專案；允許讀取入口所在目錄）
+  // 產生配置檔案（根據專案類型選擇語法）
   const allowDirs = JSON.stringify([cwd, path.dirname(entry)]);
-  const fileContent = `// Auto-generated by pikka-console (isolated root)
-// 🎯 Pikka Console Vite 配置檔案（獨立於主專案）
+
+  let fileContent;
+  if (isESModule) {
+    // ESM 語法版本 (.mjs)
+    fileContent = `// Auto-generated by pikka-console (isolated root)
+// 🎯 Pikka Console Vite 配置檔案（獨立於主專案）- ESM 版本
+import { defineConfig } from 'vite';
+
+export default defineConfig(({ command, mode }) => ({
+  root: ${JSON.stringify(consoleRoot)},
+  mode: 'development',
+  publicDir: false,
+  server: {
+    port: 3749,
+    host: true,
+    cors: true,
+    open: false,
+    fs: { allow: ${allowDirs} },
+  },
+  build: {
+    outDir: 'pikka-console-dist',
+    emptyOutDir: true,
+  },
+  define: {
+    __PIKKA_CONSOLE__: true,
+    __PIKKA_DEV__: true,
+  },
+  // 如需 React/Vue 插件可自行加上
+  plugins: []
+}));
+`;
+  } else {
+    // CommonJS 語法版本 (.js)
+    fileContent = `// Auto-generated by pikka-console (isolated root)
+// 🎯 Pikka Console Vite 配置檔案（獨立於主專案）- CommonJS 版本
 const { defineConfig } = require('vite');
 
 module.exports = defineConfig(({ command, mode }) => ({
@@ -246,9 +305,12 @@ module.exports = defineConfig(({ command, mode }) => ({
   plugins: []
 }));
 `;
+  }
+
   writeFileSync(outConfigPath, fileContent);
 
-  console.log("✅ 已建立 pikka-console.config.js");
+  console.log(`✅ 已建立 ${configFileName}`);
+  console.log(`   專案類型: ${isESModule ? "ES Module" : "CommonJS"}`);
   console.log(`   root: ${consoleRoot}`);
   console.log(`   入口: ${entry}`);
   console.log("   預設 Port: 3749");
@@ -261,7 +323,6 @@ async function devCommand(args) {
   const port = args.includes("--port")
     ? parseInt(args[args.indexOf("--port") + 1]) || 3749
     : 3749;
-  // 🎯 關鍵選擇：用 Vite 服務器還是Turbopack dev server(next,目前沒有配置)
   await startViteServer(port);
 }
 

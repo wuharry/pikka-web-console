@@ -62,12 +62,26 @@ function ensureDir(p) {
 function resolveConsoleEntry(cwd = process.cwd()) {
   const candidates = [
     path.join(cwd, "src/main.ts"),
-    path.join(cwd, "src/mian.ts"), // 你貼的路徑有打成 mian.ts，保險也試著找一下
-    path.join(cwd, "node_modules/pikka-web-console/dist/main.js"),
+    path.join(cwd, "src/index.ts"),
+    path.join(cwd, "src/main.js"),
+    path.join(cwd, "index.html"), // 如果是通过 HTML 入口
+    // 根据你的实际项目结构添加更多候选路径
   ];
+
   for (const fp of candidates) {
-    if (existsSync(fp)) return fp;
+    if (existsSync(fp)) {
+      console.log(`🎯 找到入口文件: ${fp}`);
+      return fp;
+    }
   }
+
+  // 列出实际存在的文件以帮助调试
+  console.log("📁 当前目录结构:");
+  if (existsSync(path.join(cwd, "src"))) {
+    const srcFiles = fs.readdirSync(path.join(cwd, "src"));
+    console.log(`   src/: ${srcFiles.join(", ")}`);
+  }
+
   return null;
 }
 

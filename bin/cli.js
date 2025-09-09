@@ -283,8 +283,8 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
     <title>Pikka Console - Dev Mode</title>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module">import '${entry}';</script>
+      <div id="pikka-console-web"></div>
+  <script type="module" src="${entry}"></script>
   </body>
 </html>`;
 

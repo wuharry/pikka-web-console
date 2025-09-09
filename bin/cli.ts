@@ -134,12 +134,17 @@ function resolveConsoleEntry(cwd: string = process.cwd()): string | null {
     // 讀 package.json 的自訂欄位
     const custom = pkg?.pikkaConsole?.entry;
     if (custom) {
+      // 如果是套件名稱，直接回傳
+      if (custom === "pikka-web-console") {
+        console.log(`🎯 使用套件預設入口: ${custom}`);
+        return custom;
+      }
+
       const abs = path.isAbsolute(custom) ? custom : path.join(cwd, custom);
       if (existsSync(abs)) {
         console.log(`🎯 使用 package.json 指定入口: ${abs}`);
         return abs;
       } else {
-        // 加入這個警告
         console.warn(`⚠️  指定的入口檔案不存在: ${abs}`);
         console.warn(`⚠️  將使用預設搜尋邏輯...`);
       }
@@ -149,6 +154,7 @@ function resolveConsoleEntry(cwd: string = process.cwd()): string | null {
   }
 
   const candidates: string[] = [
+    // 使用者可能的自定義入口
     path.join(cwd, "src/client/app/main.ts"),
     path.join(cwd, "src/client/app/main.tsx"),
     path.join(cwd, "src/main.ts"),
@@ -183,7 +189,7 @@ function resolveConsoleEntry(cwd: string = process.cwd()): string | null {
       // Ignore readdir errors
     }
   }
-  return null;
+  return "pikka-web-console"; // 最後回退到套件
 }
 
 // ------------------------------ dev 啟動 -------------------------------
@@ -197,7 +203,7 @@ async function startViteServer(port: number = 3749): Promise<void> {
 
   if (!existsSync(configPath)) {
     console.error(`❌ 找不到 ${path.basename(configPath)}`);
-    console.log("💡 請先執行: npx pikka-console init");
+    console.log("💡 請先執行: npx pikka-web-console init");
     process.exit(1);
   }
 
@@ -255,14 +261,19 @@ function addConsoleScriptsToPackageJson(cwd: string = process.cwd()): void {
 
   const pkg: PackageJson = JSON.parse(readFileSync(pkgPath, "utf8"));
   pkg.scripts = pkg.scripts || {};
+
+  // 初始化 pikkaConsole 配置（修正套件名稱）
   if (!pkg.pikkaConsole) {
     pkg.pikkaConsole = {
-      entry: "node_modules/pikka-web-console/dist/main.d.ts", // 預設建議路徑
+      entry: "pikka-web-console", // 使用正確的套件名稱
+      //   entry: "node_modules/pikka-web-console/dist/main.d.ts", // 預設建議路徑
     };
+    console.log("💡 已設定使用 pikka-web-console 預設入口");
   }
-  // 統一以 3749 埠為主
-  pkg.scripts["dev:console"] = "pikka-console dev --port 3749";
-  pkg.scripts["console:monitor"] = "pikka-console dev --port 3750";
+
+  // 統一以 3749 埠為主（修正指令名稱）
+  pkg.scripts["dev:console"] = "pikka-web-console dev --port 3749";
+  pkg.scripts["console:monitor"] = "pikka-web-console dev --port 3750";
 
   if (!pkg.scripts["dev:all"]) {
     const pm = detectPackageManager(cwd);
@@ -272,13 +283,14 @@ function addConsoleScriptsToPackageJson(cwd: string = process.cwd()): void {
   }
 
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
-  console.log("✅ 已新增 scripts:");
-  console.log("   - dev:console      # 啟動 Pikka Console");
-  console.log("   - console:monitor  # 備用監控指令");
-  console.log("   - dev:all          # 同時啟動原專案和 Console");
+  console.log("✅ 已新增 scripts 和配置:");
+  console.log("   - pikkaConsole.entry   # Console 入口檔案");
+  console.log("   - dev:console          # 啟動 Pikka Console");
+  console.log("   - console:monitor      # 備用監控指令");
+  console.log("   - dev:all              # 同時啟動原專案和 Console");
 }
 
-/* ------------------------ ESM 兼容版：產生 pikka-console.config ------------------------ */
+/* ------------------------ 產生 pikka-console.config ------------------------ */
 async function createPikkaConsoleConfig(
   cwd: string = process.cwd()
 ): Promise<string> {
@@ -300,34 +312,34 @@ async function createPikkaConsoleConfig(
   const entry = resolveConsoleEntry(cwd);
   if (!entry) {
     console.error("❌ 找不到 Console 入口檔。請設定 package.json：");
-    console.error(
-      '   "pikkaConsole": { "entry": "node_modules/pikka-web-console/dist/main.d.ts" }'
-    );
+    console.error('   "pikkaConsole": { "entry": "pikka-web-console" }');
     process.exit(1);
   }
 
-  // 用 /@fs 引用絕對檔案：Vite 會直接從檔案系統提供資源
-  const fsEntryPath = pathToFileURL(entry).pathname; // 轉成 /... 的形式（跨平台）
-  console.log(`   fsEntryPath入口: ${fsEntryPath}`);
-
+  // 簡化的 HTML，直接載入套件
   const indexHtml = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Pikka Console</title>
+    <title>Pikka Console - Dev Mode</title>
   </head>
   <body>
-    <div id="pikka-console-web"></div>
-    <script type="module" src="/@fs${fsEntryPath}">
-          import 'pikka-web-console/dist/inpage-console.css';
-</script>
+    <div id="app"></div>
+    <script type="module">
+      import 'pikka-web-console/dist/inpage-console.css';
+      import { initPikkaConsole } from 'pikka-web-console';
+      
+      // 自動初始化 Console
+      initPikkaConsole({
+        container: '#app',
+      });
+    </script>
   </body>
 </html>`;
 
   writeFileSync(path.join(consoleRoot, "index.html"), indexHtml);
 
-  const allowDirs = JSON.stringify([cwd, path.dirname(entry)]); // 讓 /@fs 讀得到檔案
   const common = `
   root: ${JSON.stringify(consoleRoot)},
   mode: 'development',
@@ -337,7 +349,7 @@ async function createPikkaConsoleConfig(
     host: true,
     cors: true,
     open: false,
-    fs: { allow: ${allowDirs} },
+    fs: { allow: [${JSON.stringify(cwd)}] },
   },
   build: {
     outDir: 'pikka-console-dist',
@@ -351,12 +363,12 @@ async function createPikkaConsoleConfig(
 `;
 
   const fileContent = isESModule
-    ? `// Auto-generated by pikka-console (isolated root) - ESM
+    ? `// Auto-generated by pikka-web-console (isolated root) - ESM
 import { defineConfig } from 'vite';
 export default defineConfig(({ command, mode }) => ({${common}
 }));
 `
-    : `// Auto-generated by pikka-console (isolated root) - CJS
+    : `// Auto-generated by pikka-web-console (isolated root) - CJS
 const { defineConfig } = require('vite');
 module.exports = defineConfig(({ command, mode }) => ({${common}
 }));
@@ -401,12 +413,12 @@ function showVersion(): void {
   if (existsSync(pkgPath)) {
     try {
       const pkg: PackageJson = JSON.parse(readFileSync(pkgPath, "utf8"));
-      console.log(`pikka-console v${pkg.version}`);
+      console.log(`pikka-web-console v${pkg.version}`);
     } catch {
-      console.log("pikka-console (version unknown)");
+      console.log("pikka-web-console (version unknown)");
     }
   } else {
-    console.log("pikka-console (version unknown)");
+    console.log("pikka-web-console (version unknown)");
   }
 }
 
@@ -415,15 +427,15 @@ function showHelp(): void {
   console.log("🔍 Pikka Console CLI");
   console.log("\n用法：");
   console.log(
-    "  pikka-console init              # 初始化配置（建立 .pikka/console + config）"
+    "  pikka-web-console init              # 初始化配置（建立 .pikka/console + config）"
   );
   console.log(
-    "  pikka-console dev               # 啟動開發服務器（獨立 root）"
+    "  pikka-web-console dev               # 啟動開發服務器（獨立 root）"
   );
-  console.log("  pikka-console dev --port 8080   # 指定端口");
-  console.log("  pikka-console version           # 顯示版本");
+  console.log("  pikka-web-console dev --port 8080   # 指定端口");
+  console.log("  pikka-web-console version           # 顯示版本");
   console.log("\n範例：");
-  console.log("  npx pikka-console init");
+  console.log("  npx pikka-web-console init");
   console.log("  pnpm run dev:console");
   console.log("  pnpm run dev:all  # 同時啟動原專案 + Console");
 }

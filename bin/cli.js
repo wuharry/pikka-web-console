@@ -10,7 +10,6 @@ import {
 } from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
 import { dirname, join } from "path";
-import path from "path";
 
 console.log("=".repeat(50));
 console.log("🎯 初始化 Pikka Console");
@@ -284,7 +283,7 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
   </head>
   <body>
       <div id="pikka-console-web"></div>
-  <script type="module" src="${entry}"></script>
+
   </body>
 </html>`;
 

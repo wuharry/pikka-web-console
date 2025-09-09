@@ -284,15 +284,7 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
   </head>
   <body>
     <div id="app"></div>
-    <script type="module">
-      // import 'pikka-web-console/dist/inpage-console.css';
-  //  import PikkaWebConsole from 'pikka-web-console';
-      
-      // 自動初始化 Console
-      initPikkaConsole({
-        container: '#app',
-      });
-    </script>
+    <script type="module">import '${entry}';</script>
   </body>
 </html>`;
 

@@ -1,653 +1,429 @@
-// 📁 src/lib/createConsoleServer.ts
-import { createServer, ViteDevServer, InlineConfig } from "vite";
-import * as path from "node:path";
+#!/usr/bin/env node
+// pikka-console CLI (ESM) - TypeScript version
 
-export interface ConsoleConfig {
-  port?: number;
-  open?: boolean;
-  host?: boolean;
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+} from "fs";
+import { fileURLToPath, pathToFileURL } from "url";
+import { dirname, join } from "path";
+import path from "path";
+import type { InlineConfig } from "vite";
+
+console.log("=".repeat(50));
+console.log("🎯 初始化 Pikka Console");
+console.log("=".repeat(50));
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// 類型定義
+interface PackageJson {
+  type?: "module" | "commonjs";
+  scripts?: Record<string, string>;
+  pikkaConsole?: {
+    entry?: string;
+  };
+  version?: string;
+  [key: string]: unknown;
 }
 
-/*************  ✨ Windsurf Command ⭐  *************/
-/**
- * Pikka Console 初始化命令
- *
- * 1. 創建 `.pikka` 目錄
- * 2. 創建 `.pikka/src` 目錄
- * 3. 生成監控界面 HTML、JS、CSS 檔案
- * 4. 顯示成功訊息
- */
-/*******  66453c6f-7aef-4576-8181-83107ca43fdd  *******/ export async function createConsoleServer(
-  config: ConsoleConfig
-): Promise<ViteDevServer> {
-  const consoleRoot = path.resolve(".pikka");
-
-  // 確保監控界面有正確的 Vite 配置
-  const viteConfig: InlineConfig = {
-    root: consoleRoot,
-    server: {
-      port: config.port || 3749,
-      host: config.host !== false,
-      open: config.open !== false,
-    },
-    // 重要：明確指定這是一個標準的 Web 應用
-    build: {
-      outDir: "dist",
-      // 確保正確的入口點
-      rollupOptions: {
-        input: path.join(consoleRoot, "index.html"),
-      },
-    },
-    // 開發模式設定
-    optimizeDeps: {
-      include: [], // 不需要預構建任何依賴
-    },
+interface PikkaConsoleConfig {
+  root: string;
+  mode: string;
+  publicDir: boolean;
+  server: {
+    port: number;
+    host: boolean;
+    cors: boolean;
+    open: boolean;
+    fs: {
+      allow: string[];
+    };
   };
+  build: {
+    outDir: string;
+    emptyOutDir: boolean;
+  };
+  define: {
+    __PIKKA_CONSOLE__: boolean;
+    __PIKKA_DEV__: boolean;
+  };
+  plugins: unknown[];
+}
+
+type PackageManager = "pnpm" | "yarn" | "bun" | "npm";
+
+type CommandArgs = string[];
+
+// 命令行參數解析
+const args: CommandArgs = process.argv.slice(2);
+
+// 主要邏輯分發
+if (args[0] === "init") {
+  await initCommand();
+} else if (args[0] === "dev") {
+  await devCommand(args);
+} else if (
+  args[0] === "version" ||
+  args[0] === "-v" ||
+  args[0] === "--version"
+) {
+  showVersion();
+} else {
+  showHelp();
+}
+
+/* ------------------------- 公用：偵測套件管理器 ------------------------- */
+function detectPackageManager(cwd: string = process.cwd()): PackageManager {
+  if (existsSync(path.join(cwd, "pnpm-lock.yaml"))) return "pnpm";
+  if (existsSync(path.join(cwd, "yarn.lock"))) return "yarn";
+  if (existsSync(path.join(cwd, "bun.lockb"))) return "bun";
+  if (existsSync(path.join(cwd, "package-lock.json"))) return "npm";
+  return "npm";
+}
+
+/* ------------------------- 公用：套件安裝指令提示 ------------------------- */
+function installCmd(pm: PackageManager): string {
+  switch (pm) {
+    case "pnpm":
+      return "pnpm add -D";
+    case "yarn":
+      return "yarn add -D";
+    case "bun":
+      return "bun add -d";
+    default:
+      return "npm i -D";
+  }
+}
+
+/* ------------------------- 公用：確保資料夾 ------------------------- */
+function ensureDir(path: string): void {
+  // existsSync(path) → 同步檢查路徑 path 是否已經存在。 如果存在，什麼都不做。
+  // mkdirSync(p, { recursive: true }) → 同步建立資料夾。
+  // recursive: true 代表「一路往上建到這個路徑為止」。
+  if (!existsSync(path)) mkdirSync(path, { recursive: true });
+}
+
+// 檢查專案是否為 ES module
+function isESModuleProject(cwd: string = process.cwd()): boolean {
+  // process.cwd() 會回傳 目前程式執行時的工作目錄（Current Working Directory）。
+  // /Users/test/repo/react-test-repo
+  // join加入路徑別名package.json後，回傳 /Users/test/repo/react-test-repo/package.json
+  const pkgPath = path.join(cwd, "package.json");
+  if (!existsSync(pkgPath)) return false;
 
   try {
+    const pkg: PackageJson = JSON.parse(readFileSync(pkgPath, "utf8"));
+    return pkg.type === "module";
+  } catch {
+    return false;
+  }
+}
+
+// 根據你的專案尋找 console 入口（只允許程式檔，不要 HTML）
+function resolveConsoleEntry(cwd: string = process.cwd()): string | null {
+  // 先讀 package.json 自訂
+  try {
+    const pkg: PackageJson = JSON.parse(
+      readFileSync(path.join(cwd, "package.json"), "utf8")
+    );
+    // 讀 package.json 的自訂欄位
+    const custom = pkg?.pikkaConsole?.entry;
+    if (custom) {
+      const abs = path.isAbsolute(custom) ? custom : path.join(cwd, custom);
+      if (existsSync(abs)) {
+        console.log(`🎯 使用 package.json 指定入口: ${abs}`);
+        return abs;
+      } else {
+        // 加入這個警告
+        console.warn(`⚠️  指定的入口檔案不存在: ${abs}`);
+        console.warn(`⚠️  將使用預設搜尋邏輯...`);
+      }
+    }
+  } catch {
+    // Ignore package.json parsing errors
+  }
+
+  const candidates: string[] = [
+    path.join(cwd, "src/client/app/main.ts"),
+    path.join(cwd, "src/client/app/main.tsx"),
+    path.join(cwd, "src/main.ts"),
+    path.join(cwd, "src/main.tsx"),
+    path.join(cwd, "src/index.ts"),
+    path.join(cwd, "src/index.tsx"),
+    path.join(cwd, "src/main.js"),
+    path.join(cwd, "src/main.jsx"),
+    // 已安裝為依賴的發佈檔
+    "pikka-web-console",
+    // path.join(cwd, "node_modules/pikka-web-console/dist/inpage-console.es.js"),
+    path.join(cwd, "node_modules/pikka-web-console/dist/main.d.ts"),
+  ];
+
+  for (const fp of candidates) {
+    // 如果是套件名稱，不檢查檔案存在（讓 Vite 處理）
+    if (fp === "pikka-web-console") {
+      console.log(`🎯 使用套件預設入口: ${fp}`);
+      return fp;
+    }
+    if (existsSync(fp)) {
+      console.log(`🎯 找到入口文件: ${fp}`);
+      return fp;
+    }
+  }
+
+  if (existsSync(path.join(cwd, "src"))) {
+    try {
+      const srcFiles = readdirSync(path.join(cwd, "src"));
+      console.log(`📁 src/: ${srcFiles.join(", ")}`);
+    } catch {
+      // Ignore readdir errors
+    }
+  }
+  return null;
+}
+
+// ------------------------------ dev 啟動 -------------------------------
+async function startViteServer(port: number = 3749): Promise<void> {
+  const cwd = process.cwd();
+  const isESModule = isESModuleProject(cwd);
+  const configPath = join(
+    cwd,
+    isESModule ? "pikka-console.config.mjs" : "pikka-console.config.js"
+  );
+
+  if (!existsSync(configPath)) {
+    console.error(`❌ 找不到 ${path.basename(configPath)}`);
+    console.log("💡 請先執行: npx pikka-console init");
+    process.exit(1);
+  }
+
+  try {
+    console.log("📋 載入 Vite 配置...");
+    const { createServer } = await import("vite");
+
+    // ESM 動態 import
+    const mod = await import(pathToFileURL(configPath).href);
+    const loaded = (mod?.default ?? mod) || {};
+    const baseConfig: InlineConfig =
+      typeof loaded === "function"
+        ? await loaded({ command: "serve", mode: "development" })
+        : loaded;
+
+    const viteConfig: InlineConfig = {
+      ...baseConfig,
+      server: {
+        ...(baseConfig?.server || {}),
+        port,
+        host: true,
+        open: true,
+      },
+    };
+
+    console.log(`🔥 啟動 Pikka Vite 開發服務器 (port: ${port})...`);
     const server = await createServer(viteConfig);
     await server.listen();
 
-    const address = server.httpServer?.address();
-    const port =
-      typeof address === "object" && address !== null
-        ? address.port
-        : config.port;
+    // Vite 會自動顯示 URL
+    server.printUrls();
+    console.log("\n💡 Pikka Console 已啟動！");
 
-    console.log(`\n🎯 Pikka Console 已啟動`);
-    console.log(`   ➜  監控界面: \x1b[32mhttp://localhost:${port}\x1b[0m`);
-    console.log(
-      `   ➜  請確保主應用運行在: \x1b[32mhttp://localhost:5173\x1b[0m`
-    );
-
-    return server;
+    const shutdown = (): void => {
+      console.log("\n⏹️  Stopping Pikka Console...");
+      server.close().then(() => process.exit(0));
+    };
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("❌ 無法啟動監控界面:", errorMessage);
-    throw error;
+    console.error("❌ Vite 服務器啟動失敗:", errorMessage);
+    console.log(`💡 請檢查 ${path.basename(configPath)} 是否合法`);
+    process.exit(1);
   }
 }
 
-// 📁 src/lib/templates.ts
-export function createMonitorHTML(): string {
-  return `<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pikka Console - 應用監控界面</title>
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/src/main.js"></script>
-</body>
+// ------------------------- package.json scripts --------------------------
+function addConsoleScriptsToPackageJson(cwd: string = process.cwd()): void {
+  const pkgPath = path.join(cwd, "package.json");
+  if (!existsSync(pkgPath)) {
+    console.error("❌ 找不到 package.json，請在專案根目錄執行！");
+    process.exit(1);
+  }
+
+  const pkg: PackageJson = JSON.parse(readFileSync(pkgPath, "utf8"));
+  pkg.scripts = pkg.scripts || {};
+  if (!pkg.pikkaConsole) {
+    pkg.pikkaConsole = {
+      entry: "node_modules/pikka-web-console/dist/main.d.ts", // 預設建議路徑
+    };
+  }
+  // 統一以 3749 埠為主
+  pkg.scripts["dev:console"] = "pikka-console dev --port 3749";
+  pkg.scripts["console:monitor"] = "pikka-console dev --port 3750";
+
+  if (!pkg.scripts["dev:all"]) {
+    const pm = detectPackageManager(cwd);
+    pkg.scripts["dev:all"] =
+      `concurrently "${pm} run dev" "${pm} run dev:console"`;
+    console.log(`💡 建議安裝 concurrently: ${installCmd(pm)} concurrently`);
+  }
+
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+  console.log("✅ 已新增 scripts:");
+  console.log("   - dev:console      # 啟動 Pikka Console");
+  console.log("   - console:monitor  # 備用監控指令");
+  console.log("   - dev:all          # 同時啟動原專案和 Console");
+}
+
+/* ------------------------ ESM 兼容版：產生 pikka-console.config ------------------------ */
+async function createPikkaConsoleConfig(
+  cwd: string = process.cwd()
+): Promise<string> {
+  const isESModule = isESModuleProject(cwd);
+  const configFileName = isESModule
+    ? "pikka-console.config.mjs"
+    : "pikka-console.config.js";
+  const outConfigPath = path.join(cwd, configFileName);
+
+  if (existsSync(outConfigPath)) {
+    console.log(`ℹ️ 已存在 ${configFileName}，略過建立`);
+    return outConfigPath;
+  }
+
+  console.log("🔍 準備 Pikka Console 獨立 root...");
+  const consoleRoot = path.join(cwd, ".pikka", "console");
+  ensureDir(consoleRoot);
+
+  const entry = resolveConsoleEntry(cwd);
+  if (!entry) {
+    console.error("❌ 找不到 Console 入口檔。請設定 package.json：");
+    console.error(
+      '   "pikkaConsole": { "entry": "node_modules/pikka-web-console/dist/main.d.ts" }'
+    );
+    process.exit(1);
+  }
+
+  // 用 /@fs 引用絕對檔案：Vite 會直接從檔案系統提供資源
+  const fsEntryPath = pathToFileURL(entry).pathname; // 轉成 /... 的形式（跨平台）
+  console.log(`   fsEntryPath入口: ${fsEntryPath}`);
+
+  const indexHtml = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Pikka Console</title>
+  </head>
+  <body>
+    <div id="pikka-console-web"></div>
+    <script type="module" src="/@fs${fsEntryPath}">
+          import 'pikka-web-console/dist/inpage-console.css';
+</script>
+  </body>
 </html>`;
+
+  writeFileSync(path.join(consoleRoot, "index.html"), indexHtml);
+
+  const allowDirs = JSON.stringify([cwd, path.dirname(entry)]); // 讓 /@fs 讀得到檔案
+  const common = `
+  root: ${JSON.stringify(consoleRoot)},
+  mode: 'development',
+  publicDir: false,
+  server: {
+    port: 3749,
+    host: true,
+    cors: true,
+    open: false,
+    fs: { allow: ${allowDirs} },
+  },
+  build: {
+    outDir: 'pikka-console-dist',
+    emptyOutDir: true,
+  },
+  define: {
+    __PIKKA_CONSOLE__: true,
+    __PIKKA_DEV__: true,
+  },
+  plugins: []
+`;
+
+  const fileContent = isESModule
+    ? `// Auto-generated by pikka-console (isolated root) - ESM
+import { defineConfig } from 'vite';
+export default defineConfig(({ command, mode }) => ({${common}
+}));
+`
+    : `// Auto-generated by pikka-console (isolated root) - CJS
+const { defineConfig } = require('vite');
+module.exports = defineConfig(({ command, mode }) => ({${common}
+}));
+`;
+
+  writeFileSync(outConfigPath, fileContent);
+
+  console.log(`✅ 已建立 ${configFileName}`);
+  console.log(`   root: ${consoleRoot}`);
+  console.log(`   入口: ${entry}`);
+  console.log("   預設 Port: 3749");
+  return outConfigPath;
 }
 
-export function createMonitorJS(): string {
-  return `import './style.css'
-
-// TypeScript 類型定義
-interface MetricData {
-  memory: number
-  fps: number
-  loadTime: number
+// ----------------------------- commands -----------------------------------
+async function devCommand(args: CommandArgs): Promise<void> {
+  console.log("🚀 Starting Pikka Console...");
+  const portIndex = args.indexOf("--port");
+  const port =
+    portIndex !== -1 && args[portIndex + 1]
+      ? parseInt(args[portIndex + 1]) || 3749
+      : 3749;
+  await startViteServer(port);
 }
 
-interface LogEntry {
-  timestamp: string
-  category: string
-  message: string
-  type: 'info' | 'success' | 'error'
-}
-
-interface NetworkRequest {
-  url: string
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
-  status: number
-  time: number
-}
-
-// DOM 載入完成後初始化
-document.addEventListener('DOMContentLoaded', () => {
-  initConsole()
-})
-
-function initConsole(): void {
-  const app = document.querySelector('#app') as HTMLElement
-  
-  if (!app) {
-    console.error('找不到 #app 元素')
-    return
-  }
-  
-  app.innerHTML = \`
-    <div class="console-container">
-      <header class="console-header">
-        <h1>🎯 Pikka Console</h1>
-        <div class="status-indicator" id="status">
-          <span class="status-dot"></span>
-          <span class="status-text">檢查中...</span>
-        </div>
-      </header>
-      
-      <div class="console-grid">
-        <!-- 主應用預覽 -->
-        <div class="preview-panel">
-          <h3>📱 應用預覽</h3>
-          <div class="iframe-container">
-            <iframe 
-              id="app-iframe" 
-              src="http://localhost:5173" 
-              title="主應用預覽"
-              onload="window.handleIframeLoad()"
-              onerror="window.handleIframeError()">
-            </iframe>
-          </div>
-        </div>
-        
-        <!-- 監控面板 -->
-        <div class="monitor-panel">
-          <h3>📊 效能監控</h3>
-          <div class="metrics">
-            <div class="metric">
-              <span class="metric-label">記憶體使用</span>
-              <span class="metric-value" id="memory">-- MB</span>
-            </div>
-            <div class="metric">
-              <span class="metric-label">FPS</span>
-              <span class="metric-value" id="fps">-- fps</span>
-            </div>
-            <div class="metric">
-              <span class="metric-label">載入時間</span>
-              <span class="metric-value" id="loadTime">-- ms</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 日誌面板 -->
-        <div class="logs-panel">
-          <h3>📝 監控日誌</h3>
-          <div class="log-container" id="logs"></div>
-          <button onclick="window.clearLogs()" class="clear-btn">清除日誌</button>
-        </div>
-        
-        <!-- 網路面板 -->
-        <div class="network-panel">
-          <h3>🌐 網路請求</h3>
-          <div class="network-container" id="network"></div>
-        </div>
-      </div>
-    </div>
-  \`
-  
-  // 初始化功能
-  startHealthCheck()
-  startPerformanceMonitoring()
-  startNetworkMonitoring()
-}
-
-// 健康檢查
-async function startHealthCheck(): Promise<void> {
-  const statusElement = document.getElementById('status') as HTMLElement
-  
-  const checkHealth = async (): Promise<void> => {
-    try {
-      const response = await fetch('http://localhost:5173', { 
-        method: 'HEAD',
-        mode: 'no-cors' 
-      })
-      
-      updateStatus('online', '🟢 應用運行中')
-      logEvent('健康檢查', '應用正常運行', 'success')
-    } catch (error) {
-      updateStatus('offline', '🔴 應用離線')
-      logEvent('健康檢查', '無法連接到主應用', 'error')
-    }
-  }
-  
-  setInterval(checkHealth, 3000)
-  await checkHealth() // 立即執行一次
-}
-
-// 效能監控
-function startPerformanceMonitoring(): void {
-  const updateMetrics = (): void => {
-    // 記憶體監控
-    if ('memory' in performance) {
-      const memory = (performance as any).memory
-      if (memory?.usedJSHeapSize) {
-        const memoryMB = Math.round(memory.usedJSHeapSize / 1024 / 1024)
-        const memoryElement = document.getElementById('memory')
-        if (memoryElement) {
-          memoryElement.textContent = \`\${memoryMB} MB\`
-        }
-      }
-    }
-    
-    // FPS 監控 (簡化版)
-    const fps = 60 // 預設值，實際需要更複雜的計算
-    const fpsElement = document.getElementById('fps')
-    if (fpsElement) {
-      fpsElement.textContent = \`\${fps} fps\`
-    }
-    
-    // 載入時間
-    if (performance.timing) {
-      const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart
-      if (loadTime > 0) {
-        const loadTimeElement = document.getElementById('loadTime')
-        if (loadTimeElement) {
-          loadTimeElement.textContent = \`\${loadTime} ms\`
-        }
-      }
-    }
-  }
-  
-  setInterval(updateMetrics, 1000)
-  updateMetrics() // 立即執行一次
-}
-
-// 網路監控 (模擬)
-function startNetworkMonitoring(): void {
-  // 模擬網路請求日誌
-  const networkRequests: NetworkRequest[] = [
-    { url: '/api/users', method: 'GET', status: 200, time: 145 },
-    { url: '/api/data', method: 'POST', status: 201, time: 89 },
-    { url: '/assets/logo.svg', method: 'GET', status: 200, time: 23 }
-  ]
-  
-  setTimeout(() => {
-    networkRequests.forEach((req, index) => {
-      setTimeout(() => {
-        addNetworkLog(req)
-      }, index * 2000)
-    })
-  }, 5000)
-}
-
-// 工具函數
-function updateStatus(status: 'online' | 'offline' | 'checking', text: string): void {
-  const statusElement = document.getElementById('status')
-  if (statusElement) {
-    statusElement.className = \`status-indicator \${status}\`
-    const statusText = statusElement.querySelector('.status-text')
-    if (statusText) {
-      statusText.textContent = text
-    }
-  }
-}
-
-function logEvent(category: string, message: string, type: LogEntry['type'] = 'info'): void {
-  const logsContainer = document.getElementById('logs')
-  if (!logsContainer) return
-  
-  const timestamp = new Date().toLocaleTimeString()
-  
-  const logEntry = document.createElement('div')
-  logEntry.className = \`log-entry \${type}\`
-  logEntry.innerHTML = \`
-    <span class="log-time">\${timestamp}</span>
-    <span class="log-category">[\${category}]</span>
-    <span class="log-message">\${message}</span>
-  \`
-  
-  logsContainer.appendChild(logEntry)
-  logsContainer.scrollTop = logsContainer.scrollHeight
-}
-
-function addNetworkLog(request: NetworkRequest): void {
-  const networkContainer = document.getElementById('network')
-  if (!networkContainer) return
-  
-  const timestamp = new Date().toLocaleTimeString()
-  
-  const networkEntry = document.createElement('div')
-  networkEntry.className = 'network-entry'
-  networkEntry.innerHTML = \`
-    <span class="network-time">\${timestamp}</span>
-    <span class="network-method \${request.method.toLowerCase()}">\${request.method}</span>
-    <span class="network-url">\${request.url}</span>
-    <span class="network-status status-\${Math.floor(request.status/100)}xx">\${request.status}</span>
-    <span class="network-time-taken">\${request.time}ms</span>
-  \`
-  
-  networkContainer.appendChild(networkEntry)
-}
-
-function clearLogs(): void {
-  const logsContainer = document.getElementById('logs')
-  if (logsContainer) {
-    logsContainer.innerHTML = ''
-  }
-  logEvent('系統', '日誌已清除', 'info')
-}
-
-function handleIframeLoad(): void {
-  logEvent('預覽', '主應用載入完成', 'success')
-}
-
-function handleIframeError(): void {
-  logEvent('預覽', '主應用載入失敗', 'error')
-}
-
-// 擴展 Window 介面以支援全域函數
-declare global {
-  interface Window {
-    clearLogs: () => void
-    handleIframeLoad: () => void
-    handleIframeError: () => void
-  }
-}
-
-// 將函數掛載到全域 window 物件 (讓 HTML 中的 onclick 可以使用)
-window.clearLogs = clearLogs
-window.handleIframeLoad = handleIframeLoad
-window.handleIframeError = handleIframeError`;
-}
-
-export function createMonitorCSS(): string {
-  return `/* 監控界面樣式 */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
-  color: #e2e8f0;
-  min-height: 100vh;
-  line-height: 1.6;
-}
-
-.console-container {
-  padding: 1rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.console-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.console-header h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  background: linear-gradient(45deg, #60a5fa, #34d399);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 25px;
-  background: rgba(255, 255, 255, 0.1);
-  font-weight: 500;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.status-indicator.online .status-dot { background: #10b981; }
-.status-indicator.offline .status-dot { background: #ef4444; }
-.status-indicator .status-dot { background: #f59e0b; }
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.console-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 1rem;
-  height: calc(100vh - 140px);
-}
-
-.preview-panel {
-  grid-row: 1 / -1;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 1rem;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.preview-panel h3 {
-  margin-bottom: 1rem;
-  color: #60a5fa;
-  font-size: 1.1rem;
-}
-
-.iframe-container {
-  width: 100%;
-  height: calc(100% - 50px);
-  border-radius: 8px;
-  overflow: hidden;
-  background: #1e293b;
-}
-
-#app-iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  border-radius: 8px;
-}
-
-.monitor-panel,
-.logs-panel,
-.network-panel {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 1rem;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.monitor-panel h3,
-.logs-panel h3,
-.network-panel h3 {
-  margin-bottom: 1rem;
-  color: #34d399;
-  font-size: 1.1rem;
-}
-
-.metrics {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.metric {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-}
-
-.metric-label {
-  color: #94a3b8;
-  font-size: 0.9rem;
-}
-
-.metric-value {
-  font-weight: 600;
-  color: #e2e8f0;
-}
-
-.log-container,
-.network-container {
-  height: 200px;
-  overflow-y: auto;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  padding: 0.5rem;
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 0.85rem;
-}
-
-.log-entry,
-.network-entry {
-  margin-bottom: 0.5rem;
-  padding: 0.25rem;
-  border-radius: 4px;
-}
-
-.log-entry.success { background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; }
-.log-entry.error { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; }
-.log-entry.info { background: rgba(96, 165, 250, 0.1); border-left: 3px solid #60a5fa; }
-
-.log-time,
-.network-time {
-  color: #94a3b8;
-  font-size: 0.8rem;
-}
-
-.log-category {
-  color: #60a5fa;
-  font-weight: 600;
-  margin: 0 0.5rem;
-}
-
-.network-method {
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin: 0 0.5rem;
-}
-
-.network-method.get { background: #10b981; color: white; }
-.network-method.post { background: #3b82f6; color: white; }
-.network-method.put { background: #f59e0b; color: white; }
-.network-method.delete { background: #ef4444; color: white; }
-
-.network-status {
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.status-2xx { background: #10b981; color: white; }
-.status-3xx { background: #f59e0b; color: white; }
-.status-4xx { background: #ef4444; color: white; }
-.status-5xx { background: #7c2d12; color: white; }
-
-.clear-btn {
-  margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid #ef4444;
-  color: #ef4444;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  transition: all 0.2s;
-}
-
-.clear-btn:hover {
-  background: rgba(239, 68, 68, 0.3);
-}
-
-/* 響應式設計 */
-@media (max-width: 1024px) {
-  .console-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: 2fr 1fr 1fr 1fr;
-  }
-  
-  .preview-panel {
-    grid-row: 1;
-  }
-}`;
-}
-
-// 📁 src/commands/init.ts (修正版)
-import fs from "fs/promises";
-
-export async function initCommand(): Promise<void> {
-  const pikkaDir = ".pikka";
-  const srcDir = path.join(pikkaDir, "src");
-
+/* -------------------------------- init 命令 ------------------------------- */
+async function initCommand(): Promise<void> {
+  const cwd = process.cwd();
   try {
-    // 創建目錄結構
-    await fs.mkdir(pikkaDir, { recursive: true });
-    await fs.mkdir(srcDir, { recursive: true });
-
-    // 創建檔案
-    await Promise.all([
-      // HTML 入口檔案
-      fs.writeFile(path.join(pikkaDir, "index.html"), createMonitorHTML()),
-
-      // JavaScript 主檔案
-      fs.writeFile(path.join(srcDir, "main.js"), createMonitorJS()),
-
-      // CSS 樣式檔案
-      fs.writeFile(path.join(srcDir, "style.css"), createMonitorCSS()),
-    ]);
-
-    console.log("✅ Pikka Console 初始化完成！");
-    console.log("\n📁 已創建檔案：");
-    console.log("   .pikka/index.html     - 監控界面入口");
-    console.log("   .pikka/src/main.js    - 主要邏輯");
-    console.log("   .pikka/src/style.css  - 界面樣式");
-    console.log("\n🚀 使用方式：");
-    console.log("   npm run dev:console   - 啟動監控界面");
-    console.log("   npm run dev:all       - 同時啟動主應用和監控界面");
+    addConsoleScriptsToPackageJson(cwd);
+    await createPikkaConsoleConfig(cwd);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("❌ 初始化失敗:", errorMessage);
-    throw error;
+    process.exit(1);
   }
 }
 
-// 📁 src/types/index.ts (新增類型定義檔案)
-export interface ConsoleConfig {
-  port?: number;
-  open?: boolean;
-  host?: boolean;
+/* -------------------------------- 顯示版本 -------------------------------- */
+function showVersion(): void {
+  const pkgPath = join(__dirname, "../package.json");
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg: PackageJson = JSON.parse(readFileSync(pkgPath, "utf8"));
+      console.log(`pikka-console v${pkg.version}`);
+    } catch {
+      console.log("pikka-console (version unknown)");
+    }
+  } else {
+    console.log("pikka-console (version unknown)");
+  }
 }
 
-export interface MetricData {
-  memory: number;
-  fps: number;
-  loadTime: number;
+/* -------------------------------- 顯示說明 -------------------------------- */
+function showHelp(): void {
+  console.log("🔍 Pikka Console CLI");
+  console.log("\n用法：");
+  console.log(
+    "  pikka-console init              # 初始化配置（建立 .pikka/console + config）"
+  );
+  console.log(
+    "  pikka-console dev               # 啟動開發服務器（獨立 root）"
+  );
+  console.log("  pikka-console dev --port 8080   # 指定端口");
+  console.log("  pikka-console version           # 顯示版本");
+  console.log("\n範例：");
+  console.log("  npx pikka-console init");
+  console.log("  pnpm run dev:console");
+  console.log("  pnpm run dev:all  # 同時啟動原專案 + Console");
 }
-
-export interface LogEntry {
-  timestamp: string;
-  category: string;
-  message: string;
-  type: "info" | "success" | "error";
-}
-
-export interface NetworkRequest {
-  url: string;
-  method: "GET" | "POST" | "PUT" | "DELETE";
-  status: number;
-  time: number;
-}
-
-export type StatusType = "online" | "offline" | "checking";

@@ -225,8 +225,8 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
   // 初始化 pikkaConsole 配置（修正套件名稱）
   if (!pkg.pikkaConsole) {
     pkg.pikkaConsole = {
-      entry: "pikka-web-console", // 使用正確的套件名稱
-      //   entry: "node_modules/pikka-web-console/dist/main.d.ts", // 預設建議路徑
+      // entry: "pikka-web-console", // 使用正確的套件名稱
+      entry: "node_modules/pikka-web-console/dist/main.d.ts", // 預設建議路徑
     };
     console.log("💡 已設定使用 pikka-web-console 預設入口");
   }

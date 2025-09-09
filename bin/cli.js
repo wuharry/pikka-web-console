@@ -1,4 +1,4 @@
-//  #!/usr/bin/env node
+#!/usr/bin/env node
 // pikka-console CLI (ESM) - JavaScript version
 
 import {
@@ -79,7 +79,7 @@ function isESModuleProject(cwd = process.cwd()) {
   try {
     const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
     return pkg.type === "module";
-  } catch {
+  } catch (error) {
     return false;
   }
 }
@@ -109,7 +109,7 @@ function resolveConsoleEntry(cwd = process.cwd()) {
         console.warn(`⚠️  將使用預設搜尋邏輯...`);
       }
     }
-  } catch {
+  } catch (error) {
     // Ignore package.json parsing errors
   }
 
@@ -145,7 +145,7 @@ function resolveConsoleEntry(cwd = process.cwd()) {
     try {
       const srcFiles = readdirSync(path.join(cwd, "src"));
       console.log(`📁 src/: ${srcFiles.join(", ")}`);
-    } catch {
+    } catch (error) {
       // Ignore readdir errors
     }
   }
@@ -372,7 +372,7 @@ function showVersion() {
     try {
       const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
       console.log(`pikka-web-console v${pkg.version}`);
-    } catch {
+    } catch (error) {
       console.log("pikka-web-console (version unknown)");
     }
   } else {

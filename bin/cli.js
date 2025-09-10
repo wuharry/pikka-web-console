@@ -224,42 +224,178 @@ async function startViteServer(port = 3749) {
 }
 
 // ------------------------- package.json scripts --------------------------
-function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
-  const pkgPath = path.join(cwd, "package.json");
-  if (!existsSync(pkgPath)) {
-    console.error("❌ 找不到 package.json，請在專案根目錄執行！");
+async function createPikkaConsoleConfig(cwd = process.cwd()) {
+  const isESModule = isESModuleProject(cwd);
+  const configFileName = isESModule
+    ? "pikka-console.config.mjs"
+    : "pikka-console.config.js";
+  const outConfigPath = path.join(cwd, configFileName);
+
+  if (existsSync(outConfigPath)) {
+    console.log(`ℹ️ 已存在 ${configFileName}，略過建立`);
+    return outConfigPath;
+  }
+
+  console.log("🔍 準備 Pikka Console 獨立 root...");
+  const consoleRoot = path.join(cwd, ".pikka", "console");
+  ensureDir(consoleRoot);
+
+  const entry = resolveConsoleEntry(cwd);
+  if (!entry) {
+    console.error("❌ 找不到 Console 入口檔。請設定 package.json：");
+    console.error('   "pikkaConsole": { "entry": "pikka-web-console" }');
     process.exit(1);
   }
 
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-  pkg.scripts = pkg.scripts || {};
+  // 建立橋接的 main.js 檔案
+  const mainJsContent = `// Pikka Console 橋接入口檔案
+console.log('🎯 載入 Pikka Console...');
 
-  // 初始化 pikkaConsole 配置（修正套件名稱）
-  if (!pkg.pikkaConsole) {
-    pkg.pikkaConsole = {
-      // entry: "pikka-web-console", // 使用正確的套件名稱
-      entry: "node_modules/pikka-web-console/dist/main.d.ts", // 預設建議路徑
-    };
-    console.log("💡 已設定使用 pikka-web-console 預設入口");
+// 動態載入套件
+try {
+  ${
+    entry === "pikka-web-console"
+      ? `// 載入 pikka-web-console 套件
+  await import('pikka-web-console');`
+      : `// 載入自定義入口
+  await import('${entry}');`
   }
+  
+  console.log('✅ Pikka Console 載入完成！');
+} catch (error) {
+  console.error('❌ 載入 Pikka Console 失敗:', error);
+  
+  // 顯示錯誤資訊和建議
+  const errorDiv = document.createElement('div');
+  errorDiv.innerHTML = \`
+    <div style="padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; color: #c33;">
+      <h3>⚠️ Pikka Console 載入失敗</h3>
+      <p><strong>錯誤訊息:</strong> \${error.message}</p>
+      <p><strong>可能原因:</strong></p>
+      <ul>
+        <li>pikka-web-console 套件未正確安裝</li>
+        <li>入口檔案路徑不正確</li>
+        <li>套件版本不相容</li>
+      </ul>
+      <p><strong>建議解決方案:</strong></p>
+      <ol>
+        <li>檢查是否已安裝: <code>pnpm add pikka-web-console</code></li>
+        <li>重新初始化: <code>npx pikka-web-console init</code></li>
+        <li>檢查 package.json 中的 pikkaConsole.entry 設定</li>
+      </ol>
+    </div>
+  \`;
+  document.body.appendChild(errorDiv);
+}
+`;
 
-  // 統一以 3749 埠為主（修正指令名稱）
-  pkg.scripts["dev:console"] = "pikka-web-console dev --port 3749";
-  pkg.scripts["console:monitor"] = "pikka-web-console dev --port 3750";
+  writeFileSync(path.join(consoleRoot, "main.js"), mainJsContent);
 
-  if (!pkg.scripts["dev:all"]) {
-    const pm = detectPackageManager(cwd);
-    pkg.scripts["dev:all"] =
-      `concurrently "${pm} run dev" "${pm} run dev:console"`;
-    console.log(`💡 建議安裝 concurrently: ${installCmd(pm)} concurrently`);
+  // 簡化的 HTML，載入橋接檔案
+  const indexHtml = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pikka Console - Dev Mode</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #1a1a1a;
+        color: #fff;
+      }
+      #pikka-console-web {
+        width: 100vw;
+        height: 100vh;
+      }
+      .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        flex-direction: column;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #333;
+        border-top: 4px solid #00d4ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="pikka-console-web">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>🎯 載入 Pikka Console...</p>
+      </div>
+    </div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`;
+
+  writeFileSync(path.join(consoleRoot, "index.html"), indexHtml);
+
+  const common = `
+  root: ${JSON.stringify(consoleRoot)},
+  mode: 'development',
+  publicDir: false,
+  server: {
+    port: 3749,
+    host: true,
+    cors: true,
+    open: false,
+    fs: { allow: [${JSON.stringify(cwd)}] },
+  },
+  build: {
+    outDir: 'pikka-console-dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: ${JSON.stringify(path.join(consoleRoot, "index.html"))}
+      }
+    }
+  },
+  define: {
+    __PIKKA_CONSOLE__: true,
+    __PIKKA_DEV__: true,
+  },
+  plugins: [],
+  resolve: {
+    alias: {
+      '@': ${JSON.stringify(cwd)}
+    }
   }
+`;
 
-  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
-  console.log("✅ 已新增 scripts 和配置:");
-  console.log("   - pikkaConsole.entry   # Console 入口檔案");
-  console.log("   - dev:console          # 啟動 Pikka Console");
-  console.log("   - console:monitor      # 備用監控指令");
-  console.log("   - dev:all              # 同時啟動原專案和 Console");
+  const fileContent = isESModule
+    ? `// Auto-generated by pikka-web-console (isolated root) - ESM
+import { defineConfig } from 'vite';
+export default defineConfig(({ command, mode }) => ({${common}
+}));
+`
+    : `// Auto-generated by pikka-web-console (isolated root) - CJS
+const { defineConfig } = require('vite');
+module.exports = defineConfig(({ command, mode }) => ({${common}
+}));
+`;
+
+  writeFileSync(outConfigPath, fileContent);
+
+  console.log(`✅ 已建立 ${configFileName}`);
+  console.log(`   root: ${consoleRoot}`);
+  console.log(`   入口: ${entry} (透過橋接檔案載入)`);
+  console.log("   預設 Port: 3749");
+  return outConfigPath;
 }
 
 /* ------------------------ 產生 pikka-console.config ------------------------ */

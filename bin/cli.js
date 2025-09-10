@@ -114,19 +114,31 @@ function resolveConsoleEntry(cwd = process.cwd()) {
   }
 
   const candidates = [
-    // 使用者可能的自定義入口
+    // 1. 優先使用套件（最安全的選項）
+    "pikka-web-console",
+
+    // 2. 專門為 pikka-console 建立的檔案（避免與用戶專案衝突）
+    path.join(cwd, "src/pikka-console.ts"),
+    path.join(cwd, "src/pikka-console.tsx"),
+    path.join(cwd, "src/pikka-console.js"),
+    path.join(cwd, "src/pikka-console.jsx"),
+    path.join(cwd, "src/console/main.ts"),
+    path.join(cwd, "src/console/main.tsx"),
+    path.join(cwd, "src/console/index.ts"),
+    path.join(cwd, "src/console/index.tsx"),
+
+    // 3. 特定的 client/app 路徑（比較不會和一般專案衝突）
     path.join(cwd, "src/client/app/main.ts"),
     path.join(cwd, "src/client/app/main.tsx"),
-    path.join(cwd, "src/main.ts"),
-    path.join(cwd, "src/main.tsx"),
-    path.join(cwd, "src/index.ts"),
-    path.join(cwd, "src/index.tsx"),
-    path.join(cwd, "src/main.js"),
-    path.join(cwd, "src/main.jsx"),
-    // 已安裝為依賴的發佈檔
-    "pikka-web-console",
-    // path.join(cwd, "node_modules/pikka-web-console/dist/inpage-console.es.js"),
-    path.join(cwd, "node_modules/pikka-web-console/dist/main.d.ts"),
+
+    // 4. 檢查已安裝的套件檔案
+    path.join(cwd, "node_modules/pikka-web-console/dist/index.js"),
+    path.join(cwd, "node_modules/pikka-web-console/dist/main.js"),
+
+    // 5. 最後才考慮一般的入口檔案（但要小心！）
+    // 注意：這些可能會載入用戶的主專案，應該謹慎使用
+    // path.join(cwd, "src/main.ts"),     // ← 移除這些危險的選項
+    // path.join(cwd, "src/index.ts"),   // ← 移除這些危險的選項
   ];
 
   for (const fp of candidates) {
@@ -284,6 +296,7 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
   </head>
   <body>
       <div id="pikka-console-web"></div>
+      <script type="module" src="${entry}"></script>
   </body>
 </html>`;
 

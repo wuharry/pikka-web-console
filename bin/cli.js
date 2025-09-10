@@ -84,6 +84,43 @@ function isESModuleProject(cwd = process.cwd()) {
   }
 }
 
+function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
+  const pkgPath = path.join(cwd, "package.json");
+  if (!existsSync(pkgPath)) {
+    console.error("❌ 找不到 package.json，請在專案根目錄執行！");
+    process.exit(1);
+  }
+
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+  pkg.scripts = pkg.scripts || {};
+
+  // 修正：使用正確的套件名稱，不是 .d.ts 檔案
+  if (!pkg.pikkaConsole) {
+    pkg.pikkaConsole = {
+      entry: "pikka-web-console", // ← 改成套件名稱
+    };
+    console.log("💡 已設定使用 pikka-web-console 套件入口");
+  }
+
+  // 統一以 3749 埠為主
+  pkg.scripts["dev:console"] = "pikka-web-console dev --port 3749";
+  pkg.scripts["console:monitor"] = "pikka-web-console dev --port 3750";
+
+  if (!pkg.scripts["dev:all"]) {
+    const pm = detectPackageManager(cwd);
+    pkg.scripts["dev:all"] =
+      `concurrently "${pm} run dev" "${pm} run dev:console"`;
+    console.log(`💡 建議安裝 concurrently: ${installCmd(pm)} concurrently`);
+  }
+
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+  console.log("✅ 已新增 scripts 和配置:");
+  console.log("   - pikkaConsole.entry   # Console 入口檔案");
+  console.log("   - dev:console          # 啟動 Pikka Console");
+  console.log("   - console:monitor      # 備用監控指令");
+  console.log("   - dev:all              # 同時啟動原專案和 Console");
+}
+
 // 根據你的專案尋找 console 入口（只允許程式檔，不要 HTML）
 function resolveConsoleEntry(cwd = process.cwd()) {
   // 先讀 package.json 自訂

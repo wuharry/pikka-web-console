@@ -275,10 +275,27 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
   const mainJsContent = `// Pikka Console 橋接入口檔案
 console.log('🎯 載入 Pikka Console...');
 
-// 載入 pikka-web-console 套件
+// 載入 pikka-web-console 套件和樣式
 try {
-  // 使用動態 import 載入套件
+  // 載入套件
   await import('pikka-web-console');
+  
+  // 明確載入 CSS
+  // 方法 1：嘗試 import CSS（Vite 會處理）
+  try {
+    await import('pikka-web-console/dist/inpage-console.css');
+    console.log('✅ CSS 透過 import 載入成功');
+  } catch (cssErr) {
+    // 方法 2：如果 import 失敗，使用 link 標籤
+    console.log('⚠️ CSS import 失敗，嘗試使用 link 標籤...');
+    
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/node_modules/pikka-web-console/dist/inpage-console.css';
+    link.onload = () => console.log('✅ CSS 透過 link 標籤載入成功');
+    link.onerror = () => console.error('❌ CSS 載入失敗');
+    document.head.appendChild(link);
+  }
   
   console.log('✅ Pikka Console 載入完成！');
 } catch (error) {

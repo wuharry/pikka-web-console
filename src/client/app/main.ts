@@ -1,5 +1,6 @@
 // src / client / app / main.ts;
 import { appController } from "./app-controller";
+import "../../style.css"; // 這個是重複加入的,所以需要特別注意,如果沒有必要就可以刪除
 
 /**
  * 客戶端應用入口

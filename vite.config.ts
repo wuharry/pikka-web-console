@@ -60,6 +60,7 @@ export default defineConfig(({ mode, command }) => {
   // ─────────────────────────────────────────────
   // Library / SDK 打包：vite build --mode lib
   // ─────────────────────────────────────────────
+  // vite.config.ts - lib 模式部分
   if (mode === "lib") {
     return {
       plugins: [tailwindcss()],
@@ -70,7 +71,8 @@ export default defineConfig(({ mode, command }) => {
       build: {
         outDir: "dist",
         lib: {
-          entry: "src/client/app/main.ts", // 🔧 改為客戶端入口
+          // ✅ 改為使用 src/main.ts 作為入口，這樣 CSS 才會被包含
+          entry: "src/main.ts", // 改成這個！
           name: "PikkaWebConsole",
           fileName: (fmt) => `inpage-console.${fmt}.js`,
           formats: ["es", "umd", "iife"],

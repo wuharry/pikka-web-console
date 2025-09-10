@@ -1,6 +1,6 @@
 // src\mian.ts
 import "./client/app/main";
-
+import "./style.css";
 /**
  * Pikka Web Console - 主入口點
  *

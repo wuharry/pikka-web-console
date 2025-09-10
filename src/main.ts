@@ -10,3 +10,5 @@ import "./style.css";
  * ```typescript
  * import PikkaWebConsole from 'pikka-web-console';
  */
+
+export * from "./client/app/main";

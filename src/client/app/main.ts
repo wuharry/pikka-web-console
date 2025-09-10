@@ -46,9 +46,11 @@ function initializeApp(): boolean {
   } else {
     console.log("DOM 就緒");
     console.log("✨ 初始化完成 · 🚀 pikka-console-web 已載入 ✅🔥🎉");
-
+    app.initialize();
     bootsStartUp();
     return true;
   }
 }
 initializeApp();
+
+export { app as consoleApp };

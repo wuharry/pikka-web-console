@@ -100,7 +100,7 @@ export function appController() {
         return true;
       }
       if (!startCoreServices()) {
-        // console.error("核心服務啟動失敗");
+        console.error("核心服務啟動失敗");
         return false;
       }
       initializeDevelopmentMode();

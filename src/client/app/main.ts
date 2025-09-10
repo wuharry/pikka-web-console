@@ -44,6 +44,9 @@ function initializeApp(): boolean {
     document.addEventListener("DOMContentLoaded", bootsStartUp, { once: true });
     return false;
   } else {
+    console.log("DOM 就緒");
+    console.log("✨ 初始化完成 · 🚀 pikka-console-web 已載入 ✅🔥🎉");
+
     bootsStartUp();
     return true;
   }

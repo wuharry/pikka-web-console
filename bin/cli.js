@@ -84,78 +84,61 @@ function isESModuleProject(cwd = process.cwd()) {
   }
 }
 
-// 根據你的專案尋找 console 入口（只允許程式檔，不要 HTML）
+// 檢查 pikka-web-console 套件是否已安裝
+function isPikkaConsoleInstalled(cwd = process.cwd()) {
+  // 檢查 node_modules 中是否有 pikka-web-console
+  const nodeModulesPath = path.join(cwd, "node_modules", "pikka-web-console");
+  if (existsSync(nodeModulesPath)) {
+    return true;
+  }
+
+  // 檢查 package.json 中的 dependencies
+  try {
+    const pkg = JSON.parse(
+      readFileSync(path.join(cwd, "package.json"), "utf8")
+    );
+    return !!(
+      pkg.dependencies?.["pikka-web-console"] ||
+      pkg.devDependencies?.["pikka-web-console"] ||
+      pkg.peerDependencies?.["pikka-web-console"]
+    );
+  } catch (error) {
+    return false;
+  }
+}
+
+// 根據你的專案尋找 console 入口（只使用套件入口）
 function resolveConsoleEntry(cwd = process.cwd()) {
-  // 先讀 package.json 自訂
+  // 先檢查 package.json 自訂
   try {
     const pkg = JSON.parse(
       readFileSync(path.join(cwd, "package.json"), "utf8")
     );
     // 讀 package.json 的自訂欄位
     const custom = pkg?.pikkaConsole?.entry;
-    if (custom) {
+    if (custom === "pikka-web-console") {
       // 如果是套件名稱，直接回傳
-      if (custom === "pikka-web-console") {
-        console.log(`🎯 使用套件預設入口: ${custom}`);
-        return custom;
-      }
 
-      const abs = path.isAbsolute(custom) ? custom : path.join(cwd, custom);
-      if (existsSync(abs)) {
-        console.log(`🎯 使用 package.json 指定入口: ${abs}`);
-        return abs;
-      } else {
-        console.warn(`⚠️  指定的入口檔案不存在: ${abs}`);
-        console.warn(`⚠️  將使用預設搜尋邏輯...`);
-      }
+      console.log(`🎯 使用套件預設入口: ${custom}`);
+      return custom;
     }
   } catch (error) {
     // Ignore package.json parsing errors
   }
 
-  const candidates = [
-    // 1. 優先使用套件（最安全的選項）
-    "pikka-web-console",
-
-    // 2. 專門為 pikka-console 建立的檔案（避免與用戶專案衝突）
-    path.join(cwd, "src/pikka-console.ts"),
-    path.join(cwd, "src/pikka-console.tsx"),
-    path.join(cwd, "src/pikka-console.js"),
-    path.join(cwd, "src/pikka-console.jsx"),
-    path.join(cwd, "src/console/main.ts"),
-    path.join(cwd, "src/console/main.tsx"),
-    path.join(cwd, "src/console/index.ts"),
-    path.join(cwd, "src/console/index.tsx"),
-
-    // 3. 特定的 client/app 路徑（比較不會和一般專案衝突）
-    path.join(cwd, "src/client/app/main.ts"),
-    path.join(cwd, "src/client/app/main.tsx"),
-
-    // 4. 檢查已安裝的套件檔案
-    path.join(cwd, "node_modules/pikka-web-console/dist/main.d.ts"),
-  ];
-
-  for (const fp of candidates) {
-    // 如果是套件名稱，不檢查檔案存在（讓 Vite 處理）
-    if (fp === "pikka-web-console") {
-      console.log(`🎯 使用套件預設入口: ${fp}`);
-      return fp;
-    }
-    if (existsSync(fp)) {
-      console.log(`🎯 找到入口文件: ${fp}`);
-      return fp;
-    }
+  // 檢查套件是否已安裝
+  if (isPikkaConsoleInstalled(cwd)) {
+    console.log(`🎯 偵測到已安裝 pikka-web-console，使用套件入口`);
+    return "pikka-web-console";
   }
 
-  if (existsSync(path.join(cwd, "src"))) {
-    try {
-      const srcFiles = readdirSync(path.join(cwd, "src"));
-      console.log(`📁 src/: ${srcFiles.join(", ")}`);
-    } catch (error) {
-      // Ignore readdir errors
-    }
-  }
-  return "pikka-web-console"; // 最後回退到套件
+  console.warn(`⚠️  未偵測到 pikka-web-console 套件`);
+  console.warn(
+    `⚠️  請先安裝: ${installCmd(detectPackageManager(cwd))} pikka-web-console`
+  );
+
+  // 仍然返回套件名稱，讓 Vite 處理錯誤
+  return "pikka-web-console";
 }
 
 // ------------------------------ dev 啟動 -------------------------------
@@ -228,12 +211,17 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
   const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
   pkg.scripts = pkg.scripts || {};
 
-  // 修正：使用正確的套件名稱，不是 .d.ts 檔案
+  // 永遠使用套件名稱作為入口，不要使用專案的檔案
   if (!pkg.pikkaConsole) {
     pkg.pikkaConsole = {
-      entry: "pikka-web-console", // ← 改成套件名稱
+      entry: "pikka-web-console", // 固定使用套件入口
     };
     console.log("💡 已設定使用 pikka-web-console 套件入口");
+  } else if (pkg.pikkaConsole.entry !== "pikka-web-console") {
+    // 如果已存在但不是套件入口，修正它
+    console.warn(`⚠️  偵測到錯誤的入口設定: ${pkg.pikkaConsole.entry}`);
+    pkg.pikkaConsole.entry = "pikka-web-console";
+    console.log("✅ 已修正為使用 pikka-web-console 套件入口");
   }
 
   // 統一以 3749 埠為主
@@ -249,9 +237,9 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
 
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
   console.log("✅ 已新增 scripts 和配置:");
-  console.log("   - pikkaConsole.entry   # Console 入口檔案");
-  console.log("   - dev:console          # 啟動 Pikka Console");
-  console.log("   - console:monitor      # 備用監控指令");
+  console.log("   - pikkaConsole.entry = 'pikka-web-console'");
+  console.log("   - dev:console          # 啟動 Pikka Console (port 3749)");
+  console.log("   - console:monitor      # 備用監控指令 (port 3750)");
   console.log("   - dev:all              # 同時啟動原專案和 Console");
 }
 
@@ -272,26 +260,25 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
   const consoleRoot = path.join(cwd, ".pikka", "console");
   ensureDir(consoleRoot);
 
-  const entry = resolveConsoleEntry(cwd);
-  if (!entry) {
-    console.error("❌ 找不到 Console 入口檔。請設定 package.json：");
-    console.error('   "pikkaConsole": { "entry": "pikka-web-console" }');
-    process.exit(1);
+  // 永遠使用套件入口
+  const entry = "pikka-web-console";
+
+  // 檢查套件是否已安裝
+  if (!isPikkaConsoleInstalled(cwd)) {
+    console.warn("⚠️  尚未安裝 pikka-web-console 套件");
+    console.warn(
+      `⚠️  請執行: ${installCmd(detectPackageManager(cwd))} pikka-web-console`
+    );
   }
 
   // 建立橋接的 main.js 檔案
   const mainJsContent = `// Pikka Console 橋接入口檔案
 console.log('🎯 載入 Pikka Console...');
 
-// 動態載入套件
+// 載入 pikka-web-console 套件
 try {
-  ${
-    entry === "pikka-web-console"
-      ? `// 載入 pikka-web-console 套件
-  await import('pikka-web-console');`
-      : `// 載入自定義入口
-  await import('${entry}');`
-  }
+  // 使用動態 import 載入套件
+  await import('pikka-web-console');
   
   console.log('✅ Pikka Console 載入完成！');
 } catch (error) {
@@ -306,18 +293,22 @@ try {
       <p><strong>可能原因:</strong></p>
       <ul>
         <li>pikka-web-console 套件未正確安裝</li>
-        <li>入口檔案路徑不正確</li>
         <li>套件版本不相容</li>
+        <li>模組解析錯誤</li>
       </ul>
       <p><strong>建議解決方案:</strong></p>
       <ol>
-        <li>檢查是否已安裝: <code>pnpm add pikka-web-console</code></li>
+        <li>確認已安裝套件: <code>${installCmd(detectPackageManager(cwd))} pikka-web-console</code></li>
         <li>重新初始化: <code>npx pikka-web-console init</code></li>
-        <li>檢查 package.json 中的 pikkaConsole.entry 設定</li>
+        <li>檢查 node_modules 資料夾是否存在</li>
+        <li>嘗試清除快取並重新安裝: <code>rm -rf node_modules && ${detectPackageManager(cwd)} install</code></li>
       </ol>
     </div>
   \`;
   document.body.appendChild(errorDiv);
+  
+  // 拋出錯誤讓開發者知道
+  throw error;
 }
 `;
 
@@ -377,16 +368,23 @@ try {
 
   writeFileSync(path.join(consoleRoot, "index.html"), indexHtml);
 
+  // 修正 Vite 配置，確保 publicDir 設定正確
   const common = `
   root: ${JSON.stringify(consoleRoot)},
   mode: 'development',
-  publicDir: false,
+  publicDir: false,  // 不使用 public 資料夾
   server: {
     port: 3749,
     host: true,
     cors: true,
     open: false,
-    fs: { allow: [${JSON.stringify(cwd)}] },
+    fs: { 
+      allow: [
+        ${JSON.stringify(cwd)},
+        ${JSON.stringify(path.join(cwd, "node_modules"))},
+        ${JSON.stringify(consoleRoot)}
+      ] 
+    },
   },
   build: {
     outDir: 'pikka-console-dist',
@@ -404,19 +402,26 @@ try {
   plugins: [],
   resolve: {
     alias: {
-      '@': ${JSON.stringify(cwd)}
+      '@': ${JSON.stringify(cwd)},
+      'pikka-web-console': ${JSON.stringify(path.join(cwd, "node_modules/pikka-web-console"))}
     }
+  },
+  optimizeDeps: {
+    include: ['pikka-web-console'],
+    exclude: []
   }
 `;
 
   const fileContent = isESModule
     ? `// Auto-generated by pikka-web-console (isolated root) - ESM
 import { defineConfig } from 'vite';
+
 export default defineConfig(({ command, mode }) => ({${common}
 }));
 `
     : `// Auto-generated by pikka-web-console (isolated root) - CJS
 const { defineConfig } = require('vite');
+
 module.exports = defineConfig(({ command, mode }) => ({${common}
 }));
 `;
@@ -425,7 +430,7 @@ module.exports = defineConfig(({ command, mode }) => ({${common}
 
   console.log(`✅ 已建立 ${configFileName}`);
   console.log(`   root: ${consoleRoot}`);
-  console.log(`   入口: ${entry} (透過橋接檔案載入)`);
+  console.log(`   入口: pikka-web-console (套件)`);
   console.log("   預設 Port: 3749");
   return outConfigPath;
 }
@@ -444,9 +449,24 @@ async function devCommand(args) {
 /* -------------------------------- init 命令 ------------------------------- */
 async function initCommand() {
   const cwd = process.cwd();
+
+  // 先檢查套件是否已安裝
+  if (!isPikkaConsoleInstalled(cwd)) {
+    const pm = detectPackageManager(cwd);
+    console.warn("⚠️  尚未安裝 pikka-web-console 套件");
+    console.log(`📦 請先執行: ${installCmd(pm)} pikka-web-console`);
+    console.log("   然後再執行: npx pikka-web-console init");
+    process.exit(1);
+  }
+
   try {
     addConsoleScriptsToPackageJson(cwd);
     await createPikkaConsoleConfig(cwd);
+
+    console.log("\n🎉 初始化完成！");
+    console.log("\n下一步:");
+    console.log("1. 啟動 Console: pnpm run dev:console");
+    console.log("2. 同時啟動專案和 Console: pnpm run dev:all");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("❌ 初始化失敗:", errorMessage);
@@ -485,4 +505,8 @@ function showHelp() {
   console.log("  npx pikka-web-console init");
   console.log("  pnpm run dev:console");
   console.log("  pnpm run dev:all  # 同時啟動原專案 + Console");
+  console.log("\n注意事項：");
+  console.log("  - Console 運行在獨立的端口 (預設 3749)");
+  console.log("  - 不會影響原專案的運行 (通常在 5173)");
+  console.log("  - 需要先安裝 pikka-web-console 套件");
 }

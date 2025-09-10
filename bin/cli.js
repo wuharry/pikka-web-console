@@ -62,11 +62,17 @@ function installCmd(pm) {
 
 /* ------------------------- 公用：確保資料夾 ------------------------- */
 function ensureDir(path) {
+  // existsSync(path) → 同步檢查路徑 path 是否已經存在。 如果存在，什麼都不做。
+  // mkdirSync(p, { recursive: true }) → 同步建立資料夾。
+  // recursive: true 代表「一路往上建到這個路徑為止」。
   if (!existsSync(path)) mkdirSync(path, { recursive: true });
 }
 
 // 檢查專案是否為 ES module
 function isESModuleProject(cwd = process.cwd()) {
+  // process.cwd() 會回傳 目前程式執行時的工作目錄（Current Working Directory）。
+  // /Users/test/repo/react-test-repo
+  // join加入路徑別名package.json後，回傳 /Users/test/repo/react-test-repo/package.json
   const pkgPath = path.join(cwd, "package.json");
   if (!existsSync(pkgPath)) return false;
 
@@ -126,8 +132,7 @@ function resolveConsoleEntry(cwd = process.cwd()) {
     path.join(cwd, "src/client/app/main.tsx"),
 
     // 4. 檢查已安裝的套件檔案
-    path.join(cwd, "node_modules/pikka-web-console/dist/index.js"),
-    path.join(cwd, "node_modules/pikka-web-console/dist/main.js"),
+    path.join(cwd, "node_modules/pikka-web-console/dist/main.d.ts"),
   ];
 
   for (const fp of candidates) {

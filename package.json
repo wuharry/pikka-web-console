@@ -18,6 +18,11 @@
       "import": "./dist/inpage-console.es.js",
       "require": "./dist/inpage-console.umd.js"
     },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js",
+      "require": "./dist/server/index.cjs"
+    },
     "./dist/inpage-console.css": "./dist/inpage-console.css"
   },
   "files": [
@@ -48,12 +53,15 @@
     "url": "https://github.com/wuharry/pikka-web-console/issues"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run dev:lib\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:lib": "vite build --mode lib --watch",
+    "dev:frontend": "vite",
+    "dev:backend": "nodemon --exec tsx src/server/api/main.ts",
     "build": "npm run build:clean && npm run build:lib && npm run build:ui",
     "build:clean": "rimraf dist dist-dev",
     "build:lib": "tsc --project tsconfig.build.json && vite build --mode lib",
     "build:ui": "vite build --mode ui",
+    "build:server": "tsc --project tsconfig.server.json",
     "preview:ui": "vite preview --outDir dist/ui --port 7771",
     "prepare": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -62,6 +70,7 @@
     "@eslint/js": "^9.33.0",
     "@tailwindcss/vite": "^4.1.12",
     "@types/node": "^24.3.0",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.40.0",
     "@typescript-eslint/parser": "^8.40.0",
     "@vitejs/plugin-react": "^5.0.2",
@@ -88,6 +97,7 @@
   "packageManager": "pnpm@9.0.0+sha512.b4106707c7225b1748b61595953ccbebff97b54ad05d002aa3635f633b9c53cd666f7ce9b8bc44704f1fa048b9a49b55371ab2d9e9d667d1efe2ef1514bcd513",
   "dependencies": {
     "@hono/node-server": "^1.18.2",
+    "@hono/node-ws": "^1.2.0",
     "hono": "^4.9.2"
   }
 }

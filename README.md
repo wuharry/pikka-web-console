@@ -17,15 +17,15 @@
 
 ```bash
 # 使用 npm
-npm install pikka-web-console
+npm install --D pikka-web-console
 
 # 使用 pnpm
-pnpm add pikka-web-console
+pnpm add --D pikka-web-console
 
 # 使用 yarn
-yarn add pikka-web-console
+yarn add --D pikka-web-console
 
-# 全域安裝（推薦）
+# 全域安裝（不推薦）
 npm install -g pikka-web-console
 ```
 
@@ -40,6 +40,7 @@ npx pikka-console init
 ```
 
 這會：
+
 - 創建 `pikka-console.config.js` 配置檔案
 - 在 `package.json` 中添加便捷腳本
 
@@ -84,12 +85,12 @@ npm run dev:all
 
 ## 🎮 CLI 命令
 
-| 命令 | 描述 | 範例 |
-|------|------|------|
-| `init` | 初始化 Pikka Console 配置 | `pikka-console init` |
-| `dev` | 啟動開發服務器 | `pikka-console dev` |
-| `dev --port <port>` | 指定端口啟動 | `pikka-console dev --port 8080` |
-| `version` | 顯示版本資訊 | `pikka-console version` |
+| 命令                | 描述                      | 範例                            |
+| ------------------- | ------------------------- | ------------------------------- |
+| `init`              | 初始化 Pikka Console 配置 | `pikka-console init`            |
+| `dev`               | 啟動開發服務器            | `pikka-console dev`             |
+| `dev --port <port>` | 指定端口啟動              | `pikka-console dev --port 8080` |
+| `version`           | 顯示版本資訊              | `pikka-console version`         |
 
 ## 🔧 配置
 
@@ -98,14 +99,14 @@ npm run dev:all
 初始化後會生成 `pikka-console.config.js`：
 
 ```javascript
-const { defineConfig } = require('vite');
+const { defineConfig } = require("vite");
 
 module.exports = defineConfig({
   server: {
     port: 3749,
     host: true,
     cors: true,
-    open: false
+    open: false,
   },
   // ... 其他 Vite 配置
 });
@@ -114,6 +115,7 @@ module.exports = defineConfig({
 ### 自定義配置
 
 你可以手動編輯配置檔案來：
+
 - 修改預設端口
 - 添加 Vite 插件
 - 調整 server 設定
@@ -160,12 +162,15 @@ Pikka Console 會：
 ## FAQ
 
 ### Q: 為什麼需要 Pikka Console？
+
 A: 當你需要在開發時同時檢視程式碼和 console 輸出時，Pikka Console 提供了一個獨立的網頁界面，讓你可以更方便地監控和除錯。
 
 ### Q: 支援哪些專案類型？
+
 A: 主要支援使用 Vite 的現代前端專案，也可以配置用於其他類型的專案。
 
 ### Q: 會影響生產環境嗎？
+
 A: 不會。Pikka Console 只在開發環境中運行，不會打包到生產版本中。
 
 ## 📄 授權

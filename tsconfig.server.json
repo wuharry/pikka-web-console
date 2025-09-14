@@ -1,0 +1,41 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+
+    // Node ESM 模式推「NodeNext」
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    // 輸出位置
+    "outDir": "dist/server",
+    "rootDir": "src/server",
+
+    // 方便互相 import（若後端會用到 "@/..." 別名）
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+
+    // TS 體驗與相容性
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "declaration": false,
+
+    // Node 型別（找不到 'process'、'Buffer' 這類就加上）
+    "types": ["node"]
+  },
+  "include": ["src/server/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/*.stories.*"
+  ]
+}

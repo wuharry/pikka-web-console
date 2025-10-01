@@ -1,7 +1,7 @@
 // src/client/core/consumer.ts
 import type { StateStore } from "../types/ports.types";
 
-const consumer = (channelName: string, onDataUpdate?: () => void) => {
+const consumer = (_channelName: string, onDataUpdate?: () => void) => {
   //工廠模式封裝
   const stateStore: StateStore = {
     error: [],

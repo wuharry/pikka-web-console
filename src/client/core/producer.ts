@@ -2,7 +2,7 @@ import { createConsoleInterceptor } from "@/client/core/console-interceptor";
 import { createErrorCollector } from "@/client/core/error-collector";
 
 // 發信機
-export const producer = (channel: string) => {
+export const producer = (_channel: string) => {
   const ws = new WebSocket("ws://localhost:8992/monitor");
   // const broadcastChannel = new BroadcastChannel(channel);
 

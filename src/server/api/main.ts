@@ -22,7 +22,7 @@ import { pathToFileURL } from "url";
  *
  */
 
-export function createApp() {
+export function defineWebSocketRoutes() {
   // 建構 Hono 應用
   const app = new Hono();
   app.get("/", (c) => c.text("Hello, Hono!, with WebSocket!"));
@@ -43,12 +43,12 @@ export function createApp() {
   app.get(
     "/monitor",
     upgradeWebSocket((_c) => ({
+      // 觸發時機：WebSocket 連接建立時
+      // event 包含連接建立的相關資訊
+      // ws 是 WebSocket 連接物件，可以用來發送和接收訊息
       onOpen: (event: Event, ws: WSContext) => {
-        // 觸發時機：WebSocket 連接建立時
-        // event 包含連接建立的相關資訊
-        // ws 是 WebSocket 連接物件，可以用來發送和接收訊息
-        console.log("WebSocket connection established");
-        console.log("WebSocket connection opened:", event);
+        const raw = ws.raw as (typeof import("ws"))["WebSocket"]; // 底層 ws 連線
+        let WebSocketIsAlive = true;
         connections.add(ws);
         console.log(`目前連接數: ${connections.size}`);
         console.log("WebSocket 實例:", ws);
@@ -104,7 +104,7 @@ export function createApp() {
  * 啟動 Hono WebSocket 服務器（掛載階段）
  *
  * 此函數會：
- * 1. 調用 createApp() 構建應用
+ * 1. 調用 defineWebSocketRoutes() 構建應用
  * 2. 啟動 HTTP 服務器並綁定指定端口
  * 3. 注入 WebSocket 升級處理邏輯
  * 4. 註冊優雅關閉處理器 (SIGINT/SIGTERM)
@@ -133,7 +133,7 @@ export function createApp() {
 
 export function honoWebSocketServer({ port = 8992 }: { port?: number } = {}) {
   console.log("Starting Hono WebSocket server...");
-  const { app, injectWebSocket, connections } = createApp();
+  const { app, injectWebSocket, connections } = defineWebSocketRoutes();
 
   const server = serve({ fetch: app.fetch, port });
   // 綁定升級邏輯到服務器的 upgrade 事件

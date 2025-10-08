@@ -1,26 +1,40 @@
 #!/usr/bin/env node
-// pikka-console CLI (ESM) - JavaScript version
+//告訴作業系統這是一個 Node.js 可執行文件
 
-import {
-  readFileSync,
-  writeFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-} from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+// fs 模組：文件系統操作
+// readFileSync：同步讀取文件
+// writeFileSync：同步寫入文件
+// existsSync：檢查文件/目錄是否存在
+// mkdirSync：創建目錄
+
 import { fileURLToPath, pathToFileURL } from "url";
+// url 模組：處理 URL 和文件路徑轉換（ESM 需要）
+
 import { dirname, join } from "path";
 import path from "path";
+// path 模組：處理文件路徑
 
 console.log("=".repeat(50));
 console.log("🎯 初始化 Pikka Console");
 console.log("=".repeat(50));
 
 const __filename = fileURLToPath(import.meta.url);
+// import.meta.url：ESM 中獲取當前模組的 URL
+// fileURLToPath：將 file:// URL 轉換為系統路徑
+
 const __dirname = dirname(__filename);
+// dirname：獲取文件所在目錄
 
 // 命令行參數解析
 const args = process.argv.slice(2);
+// process.argv[0]：Node.js 執行檔的完整路徑
+// process.argv[1]：當前腳本檔案路徑
+// process.argv[2]：第一個命令行參數
+// process.argv[3]：第二個命令行參數
+// EX: {script:'dev':'vite'}--> process.argv[0] = /usr/local/bin/node, process.argv[1] = /path/to/my-cli.js, process.argv[2] = vite
+// EX:scripts": { "dev:console": "pikka-web-console dev --port 3749"}-->process.argv[0] = /usr/local/bin/node,process.argv[1] = /path/to/your/pikka-cli.js,
+// process.argv[2] = "dev", process.argv[3] = "--port", process.argv[4] = "3749"
 
 // 主要邏輯分發
 if (args[0] === "init") {
@@ -60,7 +74,7 @@ function installCmd(pm) {
   }
 }
 
-/* ------------------------- 公用：確保資料夾 ------------------------- */
+/* ------------------------- 公用：確保資料夾存在 ------------------------- */
 function ensureDir(path) {
   // existsSync(path) → 同步檢查路徑 path 是否已經存在。 如果存在，什麼都不做。
   // mkdirSync(p, { recursive: true }) → 同步建立資料夾。
@@ -68,7 +82,7 @@ function ensureDir(path) {
   if (!existsSync(path)) mkdirSync(path, { recursive: true });
 }
 
-// 檢查專案是否為 ES module
+// 檢查專案是否為 ES module,決定生成 .js 還是 .mjs 配置文件
 function isESModuleProject(cwd = process.cwd()) {
   // process.cwd() 會回傳 目前程式執行時的工作目錄（Current Working Directory）。
   // /Users/test/repo/react-test-repo
@@ -102,46 +116,15 @@ function isPikkaConsoleInstalled(cwd = process.cwd()) {
       pkg.devDependencies?.["pikka-web-console"] ||
       pkg.peerDependencies?.["pikka-web-console"]
     );
+    // HACK:可選鏈運算子：?. （安全存取屬性）
+    // HACK:雙重否定：!! （轉換為布林值）
+    // HACK:短路評估：|| （任一條件為真即返回 true）
   } catch (error) {
     return false;
   }
 }
 
-// 根據你的專案尋找 console 入口（只使用套件入口）
-function resolveConsoleEntry(cwd = process.cwd()) {
-  // 先檢查 package.json 自訂
-  try {
-    const pkg = JSON.parse(
-      readFileSync(path.join(cwd, "package.json"), "utf8")
-    );
-    // 讀 package.json 的自訂欄位
-    const custom = pkg?.pikkaConsole?.entry;
-    if (custom === "pikka-web-console") {
-      // 如果是套件名稱，直接回傳
-
-      console.log(`🎯 使用套件預設入口: ${custom}`);
-      return custom;
-    }
-  } catch (error) {
-    // Ignore package.json parsing errors
-  }
-
-  // 檢查套件是否已安裝
-  if (isPikkaConsoleInstalled(cwd)) {
-    console.log(`🎯 偵測到已安裝 pikka-web-console，使用套件入口`);
-    return "pikka-web-console";
-  }
-
-  console.warn(`⚠️  未偵測到 pikka-web-console 套件`);
-  console.warn(
-    `⚠️  請先安裝: ${installCmd(detectPackageManager(cwd))} pikka-web-console`
-  );
-
-  // 仍然返回套件名稱，讓 Vite 處理錯誤
-  return "pikka-web-console";
-}
-
-// ------------------------------ dev 啟動 -------------------------------
+// ------------------------------ 核心功能 - 開發服務器(dev 啟動) -------------------------------
 async function startViteServer(port = 3749) {
   const cwd = process.cwd();
   const isESModule = isESModuleProject(cwd);
@@ -158,7 +141,7 @@ async function startViteServer(port = 3749) {
 
   try {
     console.log("📋 載入 Vite 配置...");
-    const { createServer } = await import("vite");
+    const { createServer } = await import("vite"); //動態導入 Vite：await import("vite")
 
     // ESM 動態 import
     const mod = await import(pathToFileURL(configPath).href);
@@ -200,7 +183,7 @@ async function startViteServer(port = 3749) {
   }
 }
 
-// ------------------------- package.json scripts --------------------------
+// ------------------------- 修改 package.json scripts --------------------------
 function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
   const pkgPath = path.join(cwd, "package.json");
   if (!existsSync(pkgPath)) {
@@ -258,6 +241,7 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
 
   console.log("🔍 準備 Pikka Console 獨立 root...");
   const consoleRoot = path.join(cwd, ".pikka", "console");
+  // consoleRoot是.pikka/console這個資料夾作用是把工具所需的 HTML、入口檔、暫存檔、快取、執行根目錄…隔離出來。
   ensureDir(consoleRoot);
 
   // 永遠使用套件入口

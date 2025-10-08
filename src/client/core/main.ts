@@ -20,6 +20,7 @@ export function createConsoleInterceptor(): ConsoleService {
   //呼叫的時候就會掛載監聽器了,所以需要手動關閉->stop
   const producer = createProducer("pikka-web-console-channel");
   const start = () => {
+    producer.init();
     producer.start();
   };
   const cleanUp = () => {

@@ -10,11 +10,9 @@ const consumer = (_channelName: string, onDataUpdate?: () => void) => {
     log: [],
   };
 
-  // const broadcastChannel = new BroadcastChannel(channelName);
   const ws = new WebSocket("ws://localhost:8992/monitor");
 
   const init = () => {
-    // broadcastChannel.addEventListener("message", messageHandler);
     ws.addEventListener("message", messageHandler);
   };
   init();
@@ -42,8 +40,6 @@ const consumer = (_channelName: string, onDataUpdate?: () => void) => {
   }
 
   const cleanUp = () => {
-    // broadcastChannel.removeEventListener("message", messageHandler);
-    // broadcastChannel.close();
     ws.removeEventListener("message", messageHandler);
     ws.close();
   };

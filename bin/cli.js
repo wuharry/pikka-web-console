@@ -22,7 +22,6 @@ console.log("=".repeat(50));
 const __filename = fileURLToPath(import.meta.url);
 // import.meta.url：ESM 中獲取當前模組的 URL
 // fileURLToPath：將 file:// URL 轉換為系統路徑
-
 const __dirname = dirname(__filename);
 // dirname：獲取文件所在目錄
 
@@ -82,7 +81,7 @@ function ensureDir(path) {
   if (!existsSync(path)) mkdirSync(path, { recursive: true });
 }
 
-// 檢查專案是否為 ES module,決定生成 .js 還是 .mjs 配置文件
+// 檢查專案是否為 ES module ，決定生成 .js 還是 .mjs 配置文件。
 function isESModuleProject(cwd = process.cwd()) {
   // process.cwd() 會回傳 目前程式執行時的工作目錄（Current Working Directory）。
   // /Users/test/repo/react-test-repo
@@ -116,7 +115,6 @@ function isPikkaConsoleInstalled(cwd = process.cwd()) {
       pkg.devDependencies?.["pikka-web-console"] ||
       pkg.peerDependencies?.["pikka-web-console"]
     );
-    // HACK:可選鏈運算子：?. （安全存取屬性）
     // HACK:雙重否定：!! （轉換為布林值）
     // HACK:短路評估：|| （任一條件為真即返回 true）
   } catch (error) {
@@ -124,7 +122,7 @@ function isPikkaConsoleInstalled(cwd = process.cwd()) {
   }
 }
 
-// ------------------------------ 核心功能 - 開發服務器(dev 啟動) -------------------------------
+// ------------------------------ dev 啟動(核心功能 - 開發服務器)-------------------------------
 async function startViteServer(port = 3749) {
   const cwd = process.cwd();
   const isESModule = isESModuleProject(cwd);
@@ -162,6 +160,8 @@ async function startViteServer(port = 3749) {
     };
 
     console.log(`🔥 啟動 Pikka Vite 開發服務器 (port: ${port})...`);
+    const { startServer } = await import("pikka-web-console/server");
+    await startServer({ port });
     const server = await createServer(viteConfig);
     await server.listen();
 
@@ -183,7 +183,29 @@ async function startViteServer(port = 3749) {
   }
 }
 
-// ------------------------- 修改 package.json scripts --------------------------
+async function startApiServer(port = 8992) {
+  // 後端的啟用不需要像前端那樣複雜
+  try {
+    console.log(`🔥 嘗試啟動 Pikka API 服務器 (port: ${port})...`);
+    const { default: app } = await import("pikka-web-console/server/api/main");
+    if (!app) {
+      console.error("❌ 找不到 API 服務器的 Express app");
+      process.exit(1);
+    }
+    const { serve } = await import("@hono/node-server");
+    const { createNodeWebSocket } = await import("@hono/node-ws");
+    const server = serve({ fetch: app.fetch, port });
+    const { injectWebSocket } = createNodeWebSocket({ app });
+    injectWebSocket(server);
+
+    console.log(`✅ Pikka API 已啟動在 http://localhost:${port}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("❌ API 服務器啟動失敗:", errorMessage);
+    process.exit(1);
+  }
+}
+// ------------------------- package.json scripts --------------------------
 function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
   const pkgPath = path.join(cwd, "package.json");
   if (!existsSync(pkgPath)) {
@@ -209,12 +231,13 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
 
   // 統一以 3749 埠為主
   pkg.scripts["dev:console"] = "pikka-web-console dev --port 3749";
+  pkg.scripts["dev:backend"] = "pikka-web-console dev --port 8992";
   pkg.scripts["console:monitor"] = "pikka-web-console dev --port 3750";
 
   if (!pkg.scripts["dev:all"]) {
     const pm = detectPackageManager(cwd);
     pkg.scripts["dev:all"] =
-      `concurrently "${pm} run dev" "${pm} run dev:console"`;
+      `concurrently "${pm} run dev" "${pm} run dev:console" "${pm} run dev:backend"`;
     console.log(`💡 建議安裝 concurrently: ${installCmd(pm)} concurrently`);
   }
 
@@ -255,7 +278,7 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
     );
   }
 
-  // 建立橋接的 main.js 檔案
+  // 建立橋接的 main.js 檔案--->文件的作用是載入 pikka-web-console 套件
   const mainJsContent = `// Pikka Console 橋接入口檔案
 console.log('🎯 載入 Pikka Console...');
 
@@ -315,7 +338,7 @@ try {
 
   writeFileSync(path.join(consoleRoot, "main.js"), mainJsContent);
 
-  // 簡化的 HTML，載入橋接檔案
+  // 簡化的 HTML，載入橋接檔案, index.html（控制台頁面）
   const indexHtml = `<!DOCTYPE html>
 <html>
   <head>
@@ -436,17 +459,41 @@ module.exports = defineConfig(({ command, mode }) => ({${common}
   return outConfigPath;
 }
 
+// 讀取旗標值的公用函式
+function readFlag(args, flagName, defaultValue) {
+  const index = args.indexOf(flagName);
+  if (index !== -1 && args[index + 1]) {
+    const value = args[index + 1];
+    return isNaN(value) ? defaultValue : parseInt(value) || defaultValue;
+  }
+  return defaultValue;
+}
 // ----------------------------- commands -----------------------------------
 async function devCommand(args) {
-  console.log("🚀 Starting Pikka Console...");
-  const portIndex = args.indexOf("--port");
-  const port =
-    portIndex !== -1 && args[portIndex + 1]
-      ? parseInt(args[portIndex + 1]) || 3749
-      : 3749;
-  await startViteServer(port);
-}
+  const isBoth = args.includes("--both");
+  const uiPort = readFlag(args, "--ui-port", 3749);
+  const apiPort = readFlag(args, "--api-port", 8992);
 
+  // 向後相容：原本的 --port 旗標
+  const legacyPort = readFlag(args, "--port", 3749);
+  const finalUiPort = args.includes("--ui-port") ? uiPort : legacyPort;
+
+  if (isBoth) {
+    console.log("🚀 同時啟動 Pikka Console 前端和後端...");
+    console.log(`   前端 (Vite): http://localhost:${finalUiPort}`);
+    console.log(`   後端 (API):  http://localhost:${apiPort}`);
+
+    // 這裡你需要實作 startApiServer - 先註解掉
+    await Promise.all([startApiServer(apiPort), startViteServer(finalUiPort)]);
+
+    // 暫時先只啟動前端，等你實作好 startApiServer 再打開
+    console.log("⚠️  目前只啟動前端，後端功能開發中...");
+    await startViteServer(finalUiPort);
+  } else {
+    console.log("🚀 啟動 Pikka Console 前端...");
+    await startViteServer(finalUiPort);
+  }
+}
 /* -------------------------------- init 命令 ------------------------------- */
 async function initCommand() {
   const cwd = process.cwd();
@@ -494,20 +541,21 @@ function showVersion() {
 function showHelp() {
   console.log("🔍 Pikka Console CLI");
   console.log("\n用法：");
+  console.log("  pikka-web-console init                    # 初始化配置");
   console.log(
-    "  pikka-web-console init              # 初始化配置（建立 .pikka/console + config）"
+    "  pikka-web-console dev                     # 只啟動前端 (預設 3749)"
   );
-  console.log(
-    "  pikka-web-console dev               # 啟動開發服務器（獨立 root）"
-  );
-  console.log("  pikka-web-console dev --port 8080   # 指定端口");
-  console.log("  pikka-web-console version           # 顯示版本");
+  console.log("  pikka-web-console dev --port 8080         # 指定前端端口");
+  console.log("  pikka-web-console dev --both              # 同時啟動前後端");
+  console.log("  pikka-web-console dev --both --ui-port 3749 --api-port 8992");
+  console.log("  pikka-web-console version                 # 顯示版本");
   console.log("\n範例：");
   console.log("  npx pikka-web-console init");
-  console.log("  pnpm run dev:console");
-  console.log("  pnpm run dev:all  # 同時啟動原專案 + Console");
-  console.log("\n注意事項：");
-  console.log("  - Console 運行在獨立的端口 (預設 3749)");
-  console.log("  - 不會影響原專案的運行 (通常在 5173)");
-  console.log("  - 需要先安裝 pikka-web-console 套件");
+  console.log("  pnpm run dev:console                      # 只前端");
+  console.log("  pikka-web-console dev --both              # 前後端一起");
+  console.log("\n端口說明：");
+  console.log("  --port      設定前端端口 (向後相容)");
+  console.log("  --ui-port   設定前端端口 (明確指定)");
+  console.log("  --api-port  設定後端端口 (配合 --both)");
+  console.log("  --both      同時啟動前端和後端服務");
 }

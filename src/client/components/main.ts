@@ -25,10 +25,11 @@ export function createUIController() {
   };
 
   // 🚀 創建 consumer，並傳入重新渲染回調
-  messageConsumer = createConsumer("pikka-web-console-channel", render);
+  messageConsumer = createConsumer(render);
 
   return {
     render,
+    start: messageConsumer.init,
     stop: messageConsumer.cleanUp,
   };
 }

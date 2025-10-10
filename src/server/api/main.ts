@@ -48,20 +48,17 @@ export function defineWebSocketRoutes() {
       // ws 是 WebSocket 連接物件，可以用來發送和接收訊息
       onOpen: (event: Event, ws: WSContext) => {
         const raw = ws.raw as (typeof import("ws"))["WebSocket"]; // 底層 ws 連線
-        let WebSocketIsAlive = true;
         connections.add(ws);
-        console.log(`目前連接數: ${connections.size}`);
-        console.log("WebSocket 實例:", ws);
-        ws.send("Welcome to the WebSocket server!");
+        console.log(`目前websocket連接數: ${connections.size}`);
+        // console.log("WebSocket 實例:", ws);
+        ws.send("websocket 連接測試訊息");
       },
 
       onClose: (event: CloseEvent, ws: WSContext) => {
         // event 包含連接關閉的相關資訊
         // 觸發時機：WebSocket 連接關閉時
         // 用途：清理資源、記錄日誌等
-        console.log("WebSocket connection closed");
-        console.log("WebSocket connection closed:", event);
-        console.log("WebSocket 實例:", ws);
+        console.log("WebSocket 連結關閉,事件:", event);
 
         // ✅ 從連接集合中移除已關閉的連接
         connections.delete(ws);
@@ -70,9 +67,8 @@ export function defineWebSocketRoutes() {
 
       onError: (event: Event, ws: WSContext) => {
         // event 包含錯誤的相關資訊
-        console.log("WebSocket connection error");
-        console.error("WebSocket error occurred:", event);
-        console.log("WebSocket 實例:", ws);
+        console.log("WebSocket 發生 錯誤,事件:", event);
+        // console.log("WebSocket 實例:", ws);
 
         // ✅ 錯誤時也應該移除連接
         connections.delete(ws);
@@ -92,7 +88,6 @@ export function defineWebSocketRoutes() {
         });
 
         console.log("WebSocket message received:", event.data);
-        console.log("WebSocket 實例:", ws);
       },
     }))
   );
@@ -132,7 +127,7 @@ export function defineWebSocketRoutes() {
  */
 
 export function honoWebSocketServer({ port = 8992 }: { port?: number } = {}) {
-  console.log("Starting Hono WebSocket server...");
+  console.log("正在啟動webSocket server...");
   const { app, injectWebSocket, connections } = defineWebSocketRoutes();
 
   const server = serve({ fetch: app.fetch, port });

@@ -1,7 +1,7 @@
 // src/client/core/consumer.ts
 import type { StateStore } from "../types/ports.types";
 
-const consumer = (_channelName: string, onDataUpdate?: () => void) => {
+const consumer = (handleRender?: () => void) => {
   //工廠模式封裝
   const stateStore: StateStore = {
     error: [],
@@ -9,21 +9,40 @@ const consumer = (_channelName: string, onDataUpdate?: () => void) => {
     warn: [],
     log: [],
   };
+  let webSocketIsAlive = false;
+  let ws: WebSocket;
 
-  const ws = new WebSocket("ws://localhost:8992/monitor");
-
-  const init = () => {
-    ws.addEventListener("message", messageHandler);
+  const init = (wsUrl = "ws://localhost:8992/monitor") => {
+    // console.log("[consumer.init] 呼叫", wsUrl);
+    return new Promise<void>((resolve, reject) => {
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        webSocketIsAlive = true;
+        resolve();
+      };
+      ws.onerror = (err) => {
+        webSocketIsAlive = false;
+        reject(err);
+      };
+      ws.onclose = () => {
+        webSocketIsAlive = false;
+      };
+      ws.onmessage = messageHandler;
+    });
   };
-  init();
 
   // 轉化接收到的訊息
   function messageHandler(event: MessageEvent) {
-    const data = event.data;
-
-    if (!data || !data.message) {
+    if (!webSocketIsAlive) {
+      // console.warn("WebSocket 尚未連線，無法處理訊息");
       return;
     }
+    if (!event.data) {
+      // console.warn("WebSocket 訊息為空");
+      return;
+    }
+    const data = JSON.parse(event.data);
+    // console.log("收到訊息😊👌👌", data);
 
     // 處理 ConsolePayload
     if ("level" in data && data.level) {
@@ -34,8 +53,8 @@ const consumer = (_channelName: string, onDataUpdate?: () => void) => {
       stateStore.error.push(data);
     }
 
-    if (onDataUpdate) {
-      onDataUpdate();
+    if (handleRender) {
+      handleRender();
     }
   }
 
@@ -44,6 +63,7 @@ const consumer = (_channelName: string, onDataUpdate?: () => void) => {
     ws.close();
   };
   return {
+    init,
     getChannelData: () => {
       const { error, info, warn, log } = stateStore;
       return { error, info, warn, log };

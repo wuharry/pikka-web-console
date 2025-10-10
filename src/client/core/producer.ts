@@ -1,3 +1,4 @@
+// src\client\core\producer.ts
 import { createConsoleInterceptor } from "@/client/core/console-interceptor";
 import { createErrorCollector } from "@/client/core/error-collector";
 
@@ -9,6 +10,8 @@ export const producer = (_channel: string) => {
   const messageQueue: any[] = [];
 
   const init = (url = "ws://localhost:8992/monitor") => {
+    // console.log("[producer.init] 呼叫", url);
+
     return new Promise<void>((resolve, reject) => {
       const wsUrl = url || "ws://localhost:8992/monitor";
       ws = new WebSocket(wsUrl);

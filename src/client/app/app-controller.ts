@@ -1,7 +1,7 @@
 // src / client / app / app - controller.ts;
 
 import { createUIController } from "@/client/components";
-import { createConsoleInterceptor } from "@/client/core";
+import { createConsoleMonitor } from "@/client/core";
 import { testConsoleMonitor } from "../utils";
 import logPage from "@assets/template/console-page.html?raw";
 
@@ -27,12 +27,11 @@ export function appController() {
   let isInitialized = false;
   let isStarted = false;
   let ui: ReturnType<typeof createUIController> | null = null;
-  let consoleService: ReturnType<typeof createConsoleInterceptor> | null = null; // 👈 加入這個
+  let consoleService: ReturnType<typeof createConsoleMonitor> | null = null;
 
   const initializeDOM = (): boolean => {
     const app = document.querySelector<HTMLElement>("#pikka-console-web");
     if (!app) {
-      // console.error("找不到 #app 元素");
       return false;
     }
     app.innerHTML = logPage;
@@ -40,17 +39,16 @@ export function appController() {
     return true;
   };
 
-  const startCoreServices = (): boolean => {
-    consoleService = createConsoleInterceptor();
-    consoleService.start();
+  const startCoreServices = async (): Promise<boolean> => {
+    consoleService ??= createConsoleMonitor();
+    await consoleService.start();
     // render跟掛載監聽器
     ui = createUIController();
+    await ui.start();
     ui.render();
     if (!ui) {
-      // console.error("UI 控制器未初始化，無法啟動服務");
       return false;
     }
-    // console.log("核心服務已啟動");
     return true;
   };
 
@@ -74,33 +72,30 @@ export function appController() {
     initialize(): boolean {
       if (isInitialized) {
         // 代表已經初始化過一次
-        // console.warn("應用已經初始化過了");
         return true;
       }
 
-      //初始化應用
+      //初始化應用失敗
       if (!initializeDOM()) {
-        // console.error("初始化DOM失敗");
         return false;
       }
-      // 啟動console監聽程序
-      startCoreServices();
+
       // 啟動開發者模式
       isInitialized = true;
-
       return true;
     },
-    bootUp(): boolean {
+    async bootUp(): Promise<boolean> {
       if (!this.initialize()) {
-        // console.warn("應用程式初始化未完成(可能是初始化失敗)");
+        // 初始化失敗
         return false;
       }
       if (isStarted) {
-        // console.log("應用已啟動");
+        // 已經啟動過一次
         return true;
       }
-      if (!startCoreServices()) {
-        console.error("核心服務啟動失敗");
+      const ok = await startCoreServices();
+      if (!ok) {
+        // 監聽器啟動失敗
         return false;
       }
       initializeDevelopmentMode();
@@ -108,26 +103,22 @@ export function appController() {
       isStarted = true;
       return true;
     },
-    restart(): boolean {
+    stop(): void {
+      consoleService?.cleanUp();
+      ui?.stop();
+      isStarted = false;
+    },
+    async restart(): Promise<boolean> {
+      this.stop();
       isInitialized = false;
       isStarted = false;
       return this.bootUp();
     },
-    stop(): void {
-      if (consoleService) {
-        consoleService.cleanUp(); // 👈 清理 producer
-      }
-      if (ui) {
-        ui.stop(); // 👈 清理 consumer
-      }
-      isStarted = false;
+
+    getApplicationStatus() {
+      return { isInitialized, isStarted };
     },
-    getApplicationStatus(): { isInitialized: boolean; isStarted: boolean } {
-      return {
-        isInitialized,
-        isStarted,
-      };
-    },
+
     isReady(): boolean {
       return isInitialized && isStarted;
     },

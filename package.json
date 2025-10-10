@@ -55,7 +55,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:lib\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:lib": "vite build --mode lib --watch",
-    "dev:frontend": "vite",
+    "dev:frontend": "vite --port 3749",
     "dev:backend": "nodemon --exec tsx src/server/api/main.ts",
     "build": "npm run build:clean && npm run build:lib && npm run build:ui",
     "build:clean": "rimraf dist dist-dev",

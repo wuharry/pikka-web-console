@@ -1,7 +1,7 @@
 {
   "name": "pikka-web-console",
   "private": false,
-  "version": "4.2.2",
+  "version": "5.0.0",
   "description": "一個輕量級的網頁內嵌式控制台監控工具，讓開發者可以即時檢視 JavaScript console 輸出",
   "bin": {
     "pikka-web-console": "./bin/cli.js",

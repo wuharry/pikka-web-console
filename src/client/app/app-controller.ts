@@ -1,8 +1,8 @@
 // src / client / app / app - controller.ts;
 
 import { createUIController } from "@/client/components";
-import { createConsoleMonitor } from "@/client/core";
-import { testConsoleMonitor } from "../utils";
+// import { createConsoleMonitor } from "@/client/core";
+// import { testConsoleMonitor } from "../utils";
 import logPage from "@assets/template/console-page.html?raw";
 
 /**

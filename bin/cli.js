@@ -226,7 +226,7 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
     pkg.pikkaConsole.entry = "pikka-web-console";
     console.log("✅ 已修正為使用 pikka-web-console 套件入口");
   }
-
+  const pm = detectPackageManager(cwd);
   // 統一以 3749 埠為主
   pkg.scripts["dev:console"] = "pikka-web-console dev --port 3749";
   pkg.scripts["dev:backend"] = "pikka-web-console dev --port 8992";
@@ -235,7 +235,6 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
 
   if (!pkg.scripts["dev:all"]) {
     pkg.scripts["dev:all"] = expectedDevAll;
-    const pm = detectPackageManager(cwd);
     console.log(`💡 建議安裝 concurrently: ${installCmd(pm)} concurrently`);
   } else if (pkg.scripts["dev:all"] !== expectedDevAll) {
     // ✅ 如果存在但內容不對，更新它

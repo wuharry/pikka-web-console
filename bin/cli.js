@@ -479,7 +479,17 @@ async function devCommand(args) {
   // 向後相容：原本的 --port 旗標
   const legacyPort = readFlag(args, "--port", 3749);
   const finalUiPort = args.includes("--ui-port") ? uiPort : legacyPort;
-
+  const hasOnlyPort =
+    args.includes("--port") &&
+    !args.includes("--ui-port") &&
+    !args.includes("--api-port") &&
+    !isBoth;
+  if (hasOnlyPort && legacyPort === 8992) {
+    console.log("🚀 啟動 Pikka 後端 WebSocket 服務器...");
+    console.log(`   後端 (API):  http://localhost:${legacyPort}`);
+    await startApiServer(legacyPort);
+    return;
+  }
   if (isBoth) {
     console.log("🚀 同時啟動 Pikka Console 前端和後端...");
     console.log(`   前端 (Vite): http://localhost:${finalUiPort}`);
@@ -489,11 +499,12 @@ async function devCommand(args) {
     await Promise.all([startApiServer(apiPort), startViteServer(finalUiPort)]);
 
     // 暫時先只啟動前端，等你實作好 startApiServer 再打開
-    console.log("⚠️  目前只啟動前端，後端功能開發中...");
-    await startViteServer(finalUiPort);
+    // console.log("⚠️  目前只啟動前端，後端功能開發中...");
+    // await startViteServer(finalUiPort);
   } else {
     console.log("🚀 啟動 Pikka Console 前端...");
     await startViteServer(finalUiPort);
+    await startApiServer(apiPort);
   }
 }
 /* -------------------------------- init 命令 ------------------------------- */

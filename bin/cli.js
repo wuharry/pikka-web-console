@@ -160,8 +160,7 @@ async function startViteServer(port = 3749) {
     };
 
     console.log(`🔥 啟動 Pikka Vite 開發服務器 (port: ${port})...`);
-    const { startServer } = await import("pikka-web-console/server");
-    await startServer({ port });
+
     const server = await createServer(viteConfig);
     await server.listen();
 

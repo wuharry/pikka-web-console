@@ -9,8 +9,8 @@
     "moduleResolution": "NodeNext",
 
     // 輸出位置
-    "outDir": "dist/server",
-    "rootDir": "src/server",
+    "outDir": "./dist/server",
+    "rootDir": "./src/server",
 
     // 方便互相 import（若後端會用到 "@/..." 別名）
     "baseUrl": ".",

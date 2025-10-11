@@ -187,18 +187,17 @@ async function startApiServer(port = 8992) {
   // 後端的啟用不需要像前端那樣複雜
   try {
     console.log(`🔥 嘗試啟動 Pikka API 服務器 (port: ${port})...`);
-    const { default: app } = await import("pikka-web-console/server/api/main");
-    if (!app) {
-      console.error("❌ 找不到 API 服務器的 Express app");
+    const serverModule = await import("pikka-web-console/server");
+    const { honoWebSocketServer } = serverModule;
+    if (!honoWebSocketServer) {
+      console.error("❌ 找不到啟動 API 服務器的 主程式 ");
+      console.error("可用的 exports:", Object.keys(serverModule));
       process.exit(1);
     }
-    const { serve } = await import("@hono/node-server");
-    const { createNodeWebSocket } = await import("@hono/node-ws");
-    const server = serve({ fetch: app.fetch, port });
-    const { injectWebSocket } = createNodeWebSocket({ app });
-    injectWebSocket(server);
-
+    // const { server } = honoWebSocketServer({ port });
+    honoWebSocketServer({ port });
     console.log(`✅ Pikka API 已啟動在 http://localhost:${port}`);
+    // return { server };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("❌ API 服務器啟動失敗:", errorMessage);

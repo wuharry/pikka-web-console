@@ -16,18 +16,23 @@ declare const __PIKKA_CONSOLE__: boolean;
 const isConsolePage =
   typeof __PIKKA_CONSOLE__ !== "undefined" && __PIKKA_CONSOLE__ === true;
 if (isConsolePage) {
-  // ✅ Console 頁：只啟 UI（consumer），不要起 producer
+  // ✅ Console 頁：只載 UI（consumer），不要啟動 producer
   import("./client/app/main");
 } else {
-  // ❌ 非 Console 頁：只啟 producer，不要起 UI（consumer）
+  // ✅ 主專案頁：啟動 producer（攔截 console 並送往 WS）
   import("./client/core").then(({ createConsoleMonitor }) => {
     const svc = createConsoleMonitor();
     try {
       svc.start();
-    } catch (e) {
-      // 用原生 console（被攔之前的引用較安全，至少不要 throw）
-      console && console.warn && console.warn("[pikka] start failed:", e);
+    } catch (error) {
+      // 不中斷主專案，失敗僅提示
+      console.warn("[pikka] producer start failed:", error);
     }
+
+    // 也可以選擇 export 出來給使用者呼叫停止
+    (window as any).pikkaConsoleStop = () => svc.cleanUp();
   });
 }
-export * from "./client/app/main";
+
+// 可選：輸出 consoleApp 讓使用者也能手動控制 UI（方案 B）
+export { consoleApp } from "./client/app/main"; // 若 main 有 export

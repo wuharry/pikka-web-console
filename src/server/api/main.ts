@@ -117,7 +117,7 @@ export function defineWebSocketRoutes() {
       onMessage: (event: MessageEvent, ws: WSContext) => {
         // event.data 包含接收到的訊息
         // producer 發送過來的訊息會在這邊處理
-        // console.log(`收到訊息: ${event.data}`); ////目前不列印訊息
+        console.log(`收到producer 發送的訊息: ${event.data}`);
 
         // 廣播訊息給所有連接的客戶端
         clients.forEach((client) => {

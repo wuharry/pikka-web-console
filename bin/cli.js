@@ -270,7 +270,7 @@ async function createPikkaConsoleConfig(cwd = process.cwd()) {
   ensureDir(consoleRoot);
 
   // 永遠使用套件入口
-  const entry = "pikka-web-console";
+  const startViteServer = "pikka-web-console";
 
   // 檢查套件是否已安裝
   if (!isPikkaConsoleInstalled(cwd)) {
@@ -472,40 +472,34 @@ function readFlag(args, flagName, defaultValue) {
 }
 // ----------------------------- commands -----------------------------------
 async function devCommand(args) {
-  const isBoth = args.includes("--both");
   const uiPort = readFlag(args, "--ui-port", 3749);
   const apiPort = readFlag(args, "--api-port", 8992);
 
   // 向後相容：原本的 --port 旗標
   const legacyPort = readFlag(args, "--port", 3749);
-  const finalUiPort = args.includes("--ui-port") ? uiPort : legacyPort;
   const hasOnlyPort =
     args.includes("--port") &&
     !args.includes("--ui-port") &&
-    !args.includes("--api-port") &&
-    !isBoth;
+    !args.includes("--api-port");
+  // ✅ 情況 1: --port 8992（只啟動後端）
   if (hasOnlyPort && legacyPort === 8992) {
     console.log("🚀 啟動 Pikka 後端 WebSocket 服務器...");
     console.log(`   後端 (API):  http://localhost:${legacyPort}`);
     await startApiServer(legacyPort);
     return;
   }
-  if (isBoth) {
-    console.log("🚀 同時啟動 Pikka Console 前端和後端...");
-    console.log(`   前端 (Vite): http://localhost:${finalUiPort}`);
+  // ✅ 情況 2: --api-port（明確只啟動後端）
+  if (args.includes("--api-port") && !isBoth) {
+    console.log("🚀 啟動 Pikka 後端 WebSocket 服務器...");
     console.log(`   後端 (API):  http://localhost:${apiPort}`);
-
-    // 這裡你需要實作 startApiServer - 先註解掉
-    await Promise.all([startApiServer(apiPort), startViteServer(finalUiPort)]);
-
-    // 暫時先只啟動前端，等你實作好 startApiServer 再打開
-    // console.log("⚠️  目前只啟動前端，後端功能開發中...");
-    // await startViteServer(finalUiPort);
-  } else {
-    console.log("🚀 啟動 Pikka Console 前端...");
-    await startViteServer(finalUiPort);
     await startApiServer(apiPort);
+    return;
   }
+  // ✅ 情況 4: 預設（只啟動前端）
+  const finalUiPort = args.includes("--ui-port") ? uiPort : legacyPort;
+
+  console.log("🚀 啟動 Pikka Console 前端...");
+  await startViteServer(finalUiPort);
 }
 /* -------------------------------- init 命令 ------------------------------- */
 async function initCommand() {

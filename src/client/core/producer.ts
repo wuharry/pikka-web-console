@@ -2,6 +2,12 @@
 import { createConsoleInterceptor } from "@/client/core/console-interceptor";
 import { createErrorCollector } from "@/client/core/error-collector";
 
+// 後續的靈活設定，例如從環境變數或配置文件讀取 WebSocket URL
+// const DEFAULT_WS_URL =
+//   (window as any).__PIKKA_WS_URL ||
+//   import.meta.env.VITE_PIKKA_WS_URL ||
+//   "ws://localhost:8992/monitor";
+
 // 發信機
 export const producer = (_channel: string) => {
   let ws: WebSocket;

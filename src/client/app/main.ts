@@ -17,13 +17,9 @@ import "../../style.css"; // 這個是重複加入的,所以需要特別注意,�
 const app = appController();
 
 function bootsStartUp(): void {
-  const success = app.bootUp();
-
-  if (!success) {
-    // console.error("應用啟動失敗");
-    return;
-  }
-
+  app.bootUp().catch((err) => {
+    console.warn("Pikka Console UI 啟動失敗，但攔截器仍可運作", err);
+  });
   // 檢測執行這段code的環境是不是在瀏覽器環境中執行
   // false → window 存在 --> 代表 現在是在瀏覽器中執行，因為瀏覽器才有 window 這個全域物件。
   if (typeof window !== "undefined") {

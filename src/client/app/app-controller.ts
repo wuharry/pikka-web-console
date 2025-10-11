@@ -27,7 +27,7 @@ export function appController() {
   let isInitialized = false;
   let isStarted = false;
   let ui: ReturnType<typeof createUIController> | null = null;
-  let consoleService: ReturnType<typeof createConsoleMonitor> | null = null;
+  // let consoleService: ReturnType<typeof createConsoleMonitor> | null = null;
 
   const initializeDOM = (): boolean => {
     const app = document.querySelector<HTMLElement>("#pikka-console-web");
@@ -40,8 +40,8 @@ export function appController() {
   };
 
   const startCoreServices = async (): Promise<boolean> => {
-    consoleService ??= createConsoleMonitor();
-    await consoleService.start();
+    // consoleService ??= createConsoleMonitor();
+    // await consoleService.start();
     // render跟掛載監聽器
     ui = createUIController();
     await ui.start();
@@ -63,8 +63,8 @@ export function appController() {
   const initializeDevelopmentMode = (): void => {
     if (import.meta.env.DEV) {
       // console.log("應用已啟動 - 開發模式");
-      // 取消註釋以啟用測試
-      testConsoleMonitor();
+      // 取消註釋以啟用測試 console 攔截和錯誤收集功能
+      // testConsoleMonitor();
     }
   };
 
@@ -104,7 +104,7 @@ export function appController() {
       return true;
     },
     stop(): void {
-      consoleService?.cleanUp();
+      // consoleService?.cleanUp();
       ui?.stop();
       isStarted = false;
     },

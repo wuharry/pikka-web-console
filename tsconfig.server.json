@@ -10,7 +10,6 @@
 
     // 輸出位置
     "outDir": "./dist/server",
-    "rootDir": "./src/server",
 
     // 方便互相 import（若後端會用到 "@/..." 別名）
     "baseUrl": ".",
@@ -18,7 +17,7 @@
       "@/*": ["src/*"]
     },
 
-    // TS 體驗與相容性
+    // TS 體驗與相容性,
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,

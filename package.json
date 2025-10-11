@@ -61,7 +61,7 @@
     "build:clean": "rimraf dist dist-dev",
     "build:lib": "tsc --project tsconfig.build.json && vite build --mode lib",
     "build:ui": "vite build --mode ui",
-    "build:server": "tsc --project tsconfig.server.json",
+    "build:server": "tsc --project tsconfig.server.json && vite build --mode server",
     "preview:ui": "vite preview --outDir dist/ui --port 7771",
     "prepare": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"

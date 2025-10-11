@@ -29,11 +29,12 @@ export default defineConfig(({ mode, command }) => {
       },
       build: {
         outDir: "dist/server",
+        emptyOutDir: true, // ✅ 清空 server 輸出目錄
         ssr: true, // 服務器端渲染模式
         lib: {
-          entry: "src/server/api/main.ts",
+          entry: "src/server/index.ts",
           name: "PikkaServer",
-          fileName: () => "main.js",
+          fileName: () => "index.js",
           formats: ["es"],
         },
         rollupOptions: {
@@ -46,9 +47,13 @@ export default defineConfig(({ mode, command }) => {
             // 保留的依賴（需要在運行時安裝）
             "@hono/node-server",
             "hono",
+            "ws",
+            "@hono/node-ws",
           ],
           output: {
             format: "es",
+            // ✅ 確保依賴被正確處理
+            preserveModules: false,
           },
         },
         minify: false, // 保持可讀性，方便除錯

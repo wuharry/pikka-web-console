@@ -231,12 +231,17 @@ function addConsoleScriptsToPackageJson(cwd = process.cwd()) {
   pkg.scripts["dev:console"] = "pikka-web-console dev --port 3749";
   pkg.scripts["dev:backend"] = "pikka-web-console dev --port 8992";
   pkg.scripts["console:monitor"] = "pikka-web-console dev --port 3750";
+  const expectedDevAll = `concurrently "${pm} run dev" "${pm} run dev:console" "${pm} run dev:backend"`;
 
   if (!pkg.scripts["dev:all"]) {
+    pkg.scripts["dev:all"] = expectedDevAll;
     const pm = detectPackageManager(cwd);
-    pkg.scripts["dev:all"] =
-      `concurrently "${pm} run dev" "${pm} run dev:console" "${pm} run dev:backend"`;
     console.log(`💡 建議安裝 concurrently: ${installCmd(pm)} concurrently`);
+  } else if (pkg.scripts["dev:all"] !== expectedDevAll) {
+    // ✅ 如果存在但內容不對，更新它
+    console.warn(`⚠️  偵測到舊版 dev:all script，正在更新...`);
+    pkg.scripts["dev:all"] = expectedDevAll;
+    console.log(`✅ 已更新 dev:all script (包含後端)`);
   }
 
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));

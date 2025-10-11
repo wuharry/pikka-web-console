@@ -1,9 +1,9 @@
+// Server 也是套件的 export
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
-
+    "lib": ["ES2022"], // 不要含 "DOM"
     // Node ESM 模式推「NodeNext」
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -25,7 +25,12 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "sourceMap": true,
-    "declaration": false,
+
+    // ✅ TypeScript 會自動找到 dist/server/index.d.ts
+    // ✅ 顯示正確的型別提示和自動完成
+    // for套件他人可以直接 import 這個套件
+    "declaration": true, // 產生 .d.ts
+    "declarationMap": false, //產生 .d.ts.map
 
     // Node 型別（找不到 'process'、'Buffer' 這類就加上）
     "types": ["node"]

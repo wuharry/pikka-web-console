@@ -57,7 +57,7 @@
     "dev:lib": "vite build --mode lib --watch",
     "dev:frontend": "vite --port 3749",
     "dev:backend": "nodemon --exec tsx src/server/api/main.ts",
-    "build": "npm run build:clean && npm run build:lib && npm run build:ui",
+    "build": "npm run build:clean && npm run build:lib && npm run build:ui && npm run build:server",
     "build:clean": "rimraf dist dist-dev",
     "build:lib": "tsc --project tsconfig.build.json && vite build --mode lib",
     "build:ui": "vite build --mode ui",

@@ -1,3 +1,4 @@
+// Client 是套件的主要入口
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
@@ -9,10 +10,7 @@
     "sourceMap": true,
     "emitDeclarationOnly": true
   },
-  "include": [
-    "src/main.ts",
-    "src/**/*"
-  ],
+  "include": ["src/main.ts", "src/**/*"],
   "exclude": [
     "src/**/*.test.ts",
     "src/**/*.test.tsx",

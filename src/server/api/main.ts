@@ -2,6 +2,8 @@
 import { Hono } from "hono";
 import type { WSContext } from "hono/ws";
 import { createNodeWebSocket } from "@hono/node-ws";
+import type { WebSocket as WsWebSocket } from "ws";
+
 import { serve } from "@hono/node-server";
 import { pathToFileURL } from "url";
 
@@ -22,6 +24,12 @@ import { pathToFileURL } from "url";
  *
  */
 
+interface ClientInfo {
+  ws: WSContext;
+  isAlive: boolean; // 是否還活著
+  missedPongs: number; // 連續未回應次數
+  heartbeatTimer?: NodeJS.Timeout;
+}
 export function defineWebSocketRoutes() {
   // 建構 Hono 應用
   const app = new Hono();
@@ -29,10 +37,10 @@ export function defineWebSocketRoutes() {
   // 1. 創建 WebSocket 工具
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
-  const connections = new Set<WSContext>();
-  // connections 存的是：[ws1, ws2, ws3, ...]
-  // 每個 ws 都是一個獨立的 WebSocket 連接實例
-  // connections 是用來儲存所有 WebSocket 連接的容器！
+  const clients = new Map<WSContext, ClientInfo>();
+  // clients 存的是：{ ws1: info1, ws2: info2, ws3: info3 }
+  //   ws1 => { ws1: ws1, isAlive: true, missedPongs: 0, heartbeatTimer: timer1 },
+  // 每個 ws 都是一個獨立的 WebSocket 連接實例,並且包含客戶端的資訊
 
   // 註冊 WebSocket 路由(建構階段)
   // upgradeWebSocket() 返回一個處理器，用於：
@@ -46,53 +54,85 @@ export function defineWebSocketRoutes() {
       // 觸發時機：WebSocket 連接建立時
       // event 包含連接建立的相關資訊
       // ws 是 WebSocket 連接物件，可以用來發送和接收訊息
-      onOpen: (event: Event, ws: WSContext) => {
-        const raw = ws.raw as (typeof import("ws"))["WebSocket"]; // 底層 ws 連線
-        connections.add(ws);
-        console.log(`目前websocket連接數: ${connections.size}`);
-        // console.log("WebSocket 實例:", ws);
-        ws.send("websocket 連接測試訊息");
+      onOpen: (_event: Event, ws: WSContext) => {
+        const raw = ws.raw as WsWebSocket; // 底層 ws 連線
+        const clientInfo: ClientInfo = {
+          ws,
+          isAlive: true,
+          missedPongs: 0,
+        };
+        clientInfo.heartbeatTimer = setInterval(() => {
+          if (!clientInfo.isAlive) {
+            clientInfo.missedPongs++;
+            console.warn(`客戶端未回應 pong (${clientInfo.missedPongs} 次)`);
+          }
+          if (clientInfo.missedPongs >= 3) {
+            console.error("❌ 客戶端無響應，終止連接");
+            ws.close();
+            clearInterval(clientInfo.heartbeatTimer);
+            return;
+          }
+          if (raw.readyState === WebSocket.OPEN) {
+            // 標記為「等待 pong」
+            clientInfo.isAlive = false;
+            raw.ping();
+          }
+          console.log("📤 發送 ping");
+        }, 30000);
+
+        raw.on("pong", () => {
+          clientInfo.isAlive = true;
+          clientInfo.missedPongs = 0; //reset missed pongs
+          console.log("📥 收到 pong");
+        });
+        clients.set(ws, clientInfo);
+        console.log(`✅ 新連接建立，目前websocket連接數: ${clients.size}`);
       },
 
       onClose: (event: CloseEvent, ws: WSContext) => {
         // event 包含連接關閉的相關資訊
         // 觸發時機：WebSocket 連接關閉時
         // 用途：清理資源、記錄日誌等
-        console.log("WebSocket 連結關閉,事件:", event);
-
-        // ✅ 從連接集合中移除已關閉的連接
-        connections.delete(ws);
-        console.log(`剩餘連接數: ${connections.size}`);
+        console.log(`連接關閉 [${event.code}]: ${event.reason || "無原因"}`);
+        const client = clients.get(ws);
+        if (client?.heartbeatTimer) {
+          clearInterval(client.heartbeatTimer);
+        }
+        // 移除已關閉的連接
+        clients.delete(ws);
+        console.log(`剩餘連接數: ${clients.size}`);
       },
 
       onError: (event: Event, ws: WSContext) => {
         // event 包含錯誤的相關資訊
         console.log("WebSocket 發生 錯誤,事件:", event);
-        // console.log("WebSocket 實例:", ws);
-
-        // ✅ 錯誤時也應該移除連接
-        connections.delete(ws);
+        const client = clients.get(ws);
+        if (client?.heartbeatTimer) {
+          clearInterval(client.heartbeatTimer);
+        }
+        // 錯誤發生後移除連接
+        clients.delete(ws);
       },
 
       onMessage: (event: MessageEvent, ws: WSContext) => {
         // event.data 包含接收到的訊息
         // producer 發送過來的訊息會在這邊處理
-        console.log(`收到訊息: ${event.data}`);
+        // console.log(`收到訊息: ${event.data}`); ////目前不列印訊息
 
         // 廣播訊息給所有連接的客戶端
-        connections.forEach((client: WSContext) => {
+        clients.forEach((client) => {
           // ✅ 檢查連接狀態，只發送給開啟的連接
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(event.data);
+          if (client.ws !== ws && client.ws.readyState === WebSocket.OPEN) {
+            client.ws.send(event.data);
           }
         });
 
-        console.log("WebSocket message received:", event.data);
+        // console.log("WebSocket message received:", event.data);
       },
     }))
   );
 
-  return { app, injectWebSocket, connections };
+  return { app, injectWebSocket, clients };
 }
 
 /**
@@ -128,7 +168,7 @@ export function defineWebSocketRoutes() {
 
 export function honoWebSocketServer({ port = 8992 }: { port?: number } = {}) {
   console.log("正在啟動webSocket server...");
-  const { app, injectWebSocket, connections } = defineWebSocketRoutes();
+  const { app, injectWebSocket, clients } = defineWebSocketRoutes();
 
   const server = serve({ fetch: app.fetch, port });
   // 綁定升級邏輯到服務器的 upgrade 事件
@@ -136,12 +176,12 @@ export function honoWebSocketServer({ port = 8992 }: { port?: number } = {}) {
   console.log(`Server is running on http://localhost:${port}`);
 
   const shutdown = () => {
-    for (const ws of connections) {
+    for (const ws of clients.keys()) {
       try {
         ws.close();
       } catch {}
     }
-    connections.clear();
+    clients.clear();
     server.close(() => process.exit(0));
   };
 

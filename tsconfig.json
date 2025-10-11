@@ -1,3 +1,4 @@
+//基礎配置，被繼承
 {
   "compilerOptions": {
     /* 基礎設定 Bundler mode */

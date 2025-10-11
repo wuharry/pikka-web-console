@@ -13,7 +13,6 @@ const consumer = (handleRender?: () => void) => {
   let ws: WebSocket;
 
   const init = (wsUrl = "ws://localhost:8992/monitor") => {
-    // console.log("[consumer.init] 呼叫", wsUrl);
     return new Promise<void>((resolve, reject) => {
       ws = new WebSocket(wsUrl);
       ws.onopen = () => {
@@ -34,15 +33,12 @@ const consumer = (handleRender?: () => void) => {
   // 轉化接收到的訊息
   function messageHandler(event: MessageEvent) {
     if (!webSocketIsAlive) {
-      // console.warn("WebSocket 尚未連線，無法處理訊息");
       return;
     }
     if (!event.data) {
-      // console.warn("WebSocket 訊息為空");
       return;
     }
     const data = JSON.parse(event.data);
-    // console.log("收到訊息😊👌👌", data);
 
     // 處理 ConsolePayload
     if ("level" in data && data.level) {

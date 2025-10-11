@@ -594,7 +594,7 @@ async function devCommand(args) {
     return;
   }
   // ✅ 情況 2: --api-port（明確只啟動後端）
-  if (args.includes("--api-port") && !isBoth) {
+  if (args.includes("--api-port")) {
     console.log("🚀 啟動 Pikka 後端 WebSocket 服務器...");
     console.log(`   後端 (API):  http://localhost:${apiPort}`);
     await startApiServer(apiPort);

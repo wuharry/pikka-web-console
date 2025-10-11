@@ -1,1 +1,1 @@
-export * from "./processConsole";
+export * from "./processConsole.js";

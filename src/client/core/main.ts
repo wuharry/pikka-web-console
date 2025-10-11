@@ -25,15 +25,22 @@ export function createConsoleMonitor(): ConsoleService {
     if (started) {
       return;
     }
-    await producer.init();
-    producer.start();
-    started = true;
+    try {
+      await producer.init();
+      producer.start();
+      started = true;
+      console.log("✅ [Pikka] Console interceptor 已啟動");
+    } catch (error) {
+      console.error("❌ [Pikka] Producer 啟動失敗:", error);
+      throw error;
+    }
   };
 
   const cleanUp = () => {
     if (!started) return;
     producer.stop();
     started = false;
+    console.log("🛑 [Pikka] Producer 已停止");
   };
 
   return { start, cleanUp };

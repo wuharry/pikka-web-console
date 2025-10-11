@@ -1,5 +1,4 @@
 // src\mian.ts
-import "./client/app/main";
 import "./style.css";
 /**
  * Pikka Web Console - 主入口點
@@ -12,27 +11,35 @@ import "./style.css";
  */
 
 declare const __PIKKA_CONSOLE__: boolean;
-// 只有在 Pikka Console 頁面才會載入這個模組
+// 判斷是否為 Console 頁面
 const isConsolePage =
-  typeof __PIKKA_CONSOLE__ !== "undefined" && __PIKKA_CONSOLE__ === true;
+  typeof __PIKKA_CONSOLE__ !== "undefined" && __PIKKA_CONSOLE__;
 if (isConsolePage) {
   // ✅ Console 頁：只載 UI（consumer），不要啟動 producer
+  console.log("🎯 [Pikka] 載入 Console UI 模式");
   import("./client/app/main");
 } else {
-  // ✅ 主專案頁：啟動 producer（攔截 console 並送往 WS）
+  // ✅ 主專案頁面：啟動 Producer
   import("./client/core").then(({ createConsoleMonitor }) => {
-    const svc = createConsoleMonitor();
+    const monitor = createConsoleMonitor();
     try {
-      svc.start();
+      monitor.start();
+      console.log("✅ [Pikka] Console Producer 已啟動");
     } catch (error) {
       // 不中斷主專案，失敗僅提示
-      console.warn("[pikka] producer start failed:", error);
+      console.warn("⚠️ [Pikka] Producer 啟動失敗:", error);
     }
 
-    // 也可以選擇 export 出來給使用者呼叫停止
-    (window as any).pikkaConsoleStop = () => svc.cleanUp();
+    // 暴露控制介面
+    if (typeof window !== "undefined") {
+      (window as any).__pikkaProducer = {
+        stop: () => monitor.cleanUp(),
+        restart: () => monitor.start(),
+      };
+    }
   });
 }
 
 // 可選：輸出 consoleApp 讓使用者也能手動控制 UI（方案 B）
-export { consoleApp } from "./client/app/main"; // 若 main 有 export
+export { createConsoleMonitor } from "./client/core";
+export { consoleApp } from "./client/app/main";

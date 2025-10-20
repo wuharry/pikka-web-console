@@ -17,7 +17,7 @@ declare const __PIKKA_CONSOLE__: boolean;
   // 判斷是否為 Console 頁面
   const isConsolePage =
     typeof __PIKKA_CONSOLE__ !== "undefined" && __PIKKA_CONSOLE__;
-    
+
   if (isConsolePage) {
     // ✅ Console 頁：只載 UI（consumer），不要啟動 producer
     console.log("🎯 [Pikka] 載入 Console UI 模式");
@@ -28,17 +28,16 @@ declare const __PIKKA_CONSOLE__: boolean;
       // 同步載入核心模組
       const { createConsoleMonitor } = await import("./client/core");
       const monitor = createConsoleMonitor();
-      
+
       // 立即同步啟動
       await monitor.start();
       console.log("✅ [Pikka] Console Producer 已同步啟動");
-      
+
       // 暴露控制介面
       if (typeof window !== "undefined") {
         (window as any).__pikkaProducer = {
           stop: () => monitor.cleanUp(),
           restart: () => monitor.start(),
-          isRunning: () => monitor.isRunning?.() ?? true,
         };
       }
     } catch (error) {

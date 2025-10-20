@@ -7,6 +7,7 @@ import react from "@vitejs/plugin-react";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
+import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig(({ mode, command }) => {
   // 通用的路徑別名配置
@@ -68,7 +69,15 @@ export default defineConfig(({ mode, command }) => {
   // vite.config.ts - lib 模式部分
   if (mode === "lib") {
     return {
-      plugins: [tailwindcss()],
+      plugins: [
+        tailwindcss(),
+        visualizer({
+          open: true,
+          gzipSize: true,
+          brotliSize: true,
+          filename: "dist/stats.html",
+        }),
+      ],
       // 🔧 在庫模式也加上路徑別名解析
       resolve: {
         alias: aliases,

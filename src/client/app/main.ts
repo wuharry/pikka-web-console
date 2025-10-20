@@ -36,16 +36,10 @@ function initializeApp(): boolean {
   if (typeof window === "undefined") {
     return false;
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bootsStartUp, { once: true });
-    return false;
-  } else {
-    console.log("DOM 就緒");
-    console.log("✨ 初始化完成 · 🚀 pikka-console-web 已載入 ✅🔥🎉");
-    app.initialize();
-    bootsStartUp();
-    return true;
-  }
+  console.log("✨ 初始化完成 · 🚀 pikka-console-web 已載入 ✅🔥🎉");
+  app.initialize();
+  bootsStartUp();
+  return true;
 }
 initializeApp();
 
